@@ -1,6 +1,14 @@
 use crate::color::Color;
+use crate::vertex::Vertex;
+use crate::fragment::Fragment; // Asegúrate de tener esta estructura
 use minifb::{Window, WindowOptions, Key};
 
+// Estructura Uniforms solo con los datos necesarios para Fragment Processing
+pub struct Uniforms {
+    pub fragment_color: Color, // Solo necesitamos el color en esta etapa
+}
+
+// Framebuffer para gestionar el buffer de píxeles
 pub struct Framebuffer {
     pub width: usize,
     pub height: usize,
@@ -55,5 +63,18 @@ impl Framebuffer {
         while window.is_open() && !window.is_key_down(Key::Escape) {
             window.update_with_buffer(&self.buffer, self.width, self.height).unwrap();
         }
+    }
+}
+
+// Solo la etapa de Fragment Processing
+pub fn render(framebuffer: &mut Framebuffer, uniforms: &Uniforms, fragments: &[Fragment]) {
+    // Fragment Processing Stage: dibujar los fragmentos en el framebuffer
+    for fragment in fragments {
+        let x = fragment.position.x as usize;
+        let y = fragment.position.y as usize;
+
+        // Se utiliza el color definido en Uniforms o en el propio fragmento si prefieres
+        framebuffer.set_current_color(uniforms.fragment_color);
+        framebuffer.point(x as isize, y as isize);
     }
 }
