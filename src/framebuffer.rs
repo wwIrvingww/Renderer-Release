@@ -1,19 +1,16 @@
 use crate::color::Color;
 use crate::vertex::Vertex;
-use crate::fragment::Fragment; // Asegúrate de tener esta estructura
+use crate::fragment::Fragment;
+use crate::shader::vertex_shader;
+use crate::uniforms::Uniforms; // Asegúrate de importar Uniforms desde uniforms.rs
 use minifb::{Window, WindowOptions, Key};
-
-// Estructura Uniforms solo con los datos necesarios para Fragment Processing
-pub struct Uniforms {
-    pub fragment_color: Color, // Solo necesitamos el color en esta etapa
-}
 
 // Framebuffer para gestionar el buffer de píxeles
 pub struct Framebuffer {
     pub width: usize,
     pub height: usize,
-    pub buffer: Vec<u32>, // El buffer se representa como un vector de u32 para los colores
-    current_color: u32,    // Agrega un campo para almacenar el color actual
+    pub buffer: Vec<u32>,
+    current_color: u32,
 }
 
 impl Framebuffer {
@@ -21,8 +18,8 @@ impl Framebuffer {
         Self {
             width,
             height,
-            buffer: vec![0; width * height], // Inicializar el buffer con color negro
-            current_color: 0,                // Color inicial
+            buffer: vec![0; width * height],
+            current_color: 0,
         }
     }
 
@@ -40,7 +37,7 @@ impl Framebuffer {
             let index = (y as usize) * self.width + (x as usize);
             self.buffer[index] = self.current_color;
         }
-    }
+    } // <- Cierre de la función point
 
     // Método para establecer el color actual
     pub fn set_current_color(&mut self, color: Color) {
@@ -66,15 +63,23 @@ impl Framebuffer {
     }
 }
 
-// Solo la etapa de Fragment Processing
-pub fn render(framebuffer: &mut Framebuffer, uniforms: &Uniforms, fragments: &[Fragment]) {
+// Solo la etapa de Fragment Processing con el Vertex Shader
+pub fn render(framebuffer: &mut Framebuffer, uniforms: &Uniforms, vertex_array: &[Vertex]) {
+    let mut fragments: Vec<Fragment> = Vec::new();
+
+    // Vertex Shader Stage: Aplicar transformaciones a los vértices
+    let mut transformed_vertices = Vec::new();
+    for vertex in vertex_array {
+        let transformed_vertex = vertex_shader(vertex, uniforms);
+        transformed_vertices.push(transformed_vertex);
+    }
+
     // Fragment Processing Stage: dibujar los fragmentos en el framebuffer
     for fragment in fragments {
         let x = fragment.position.x as usize;
         let y = fragment.position.y as usize;
 
-        // Se utiliza el color definido en Uniforms o en el propio fragmento si prefieres
-        framebuffer.set_current_color(uniforms.fragment_color);
+        framebuffer.set_current_color(fragment.color);
         framebuffer.point(x as isize, y as isize);
     }
 }
