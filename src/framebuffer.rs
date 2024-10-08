@@ -2,7 +2,6 @@ use crate::color::Color;
 use crate::vertex::Vertex;
 use crate::fragment::Fragment;
 use crate::shader::vertex_shader;
-use crate::triangle::triangle;
 use crate::uniforms::Uniforms;
 use minifb::{Window, WindowOptions, Key};
 use nalgebra_glm::{Vec2, Vec3};
@@ -74,7 +73,27 @@ fn calculate_bounding_box(v1: &Vec3, v2: &Vec3, v3: &Vec3) -> (i32, i32, i32, i3
     (min_x, min_y, max_x, max_y)
 }
 
-// Rasterización de triángulos usando Bounding Box y la función triangle
+// Coordenadas baricéntricas para un punto en el triángulo
+fn barycentric_coordinates(p: &Vec3, a: &Vec3, b: &Vec3, c: &Vec3) -> (f32, f32, f32) {
+    let v0 = b - a;  // Vector AB
+    let v1 = c - a;  // Vector AC
+    let v2 = p - a;  // Vector AP
+
+    let d00 = v0.dot(&v0);
+    let d01 = v0.dot(&v1);
+    let d11 = v1.dot(&v1);
+    let d20 = v2.dot(&v0);
+    let d21 = v2.dot(&v1);
+
+    let denom = d00 * d11 - d01 * d01;
+    let v = (d11 * d20 - d01 * d21) / denom;
+    let w = (d00 * d21 - d01 * d20) / denom;
+    let u = 1.0 - v - w;
+
+    (u, v, w)
+}
+
+// Rasterización de triángulos usando Bounding Box y las coordenadas baricéntricas
 pub fn primitive_assembly_rasterization(vertex_array: &[Vertex]) -> Vec<Fragment> {
     let mut fragments: Vec<Fragment> = Vec::new();
 
@@ -95,13 +114,26 @@ pub fn primitive_assembly_rasterization(vertex_array: &[Vertex]) -> Vec<Fragment
             // Restringimos la rasterización al área dentro del Bounding Box
             for y in min_y..=max_y {
                 for x in min_x..=max_x {
-                    // Verificar si el punto (x, y) está dentro del triángulo
-                    let p = Vec2::new(x as f32, y as f32);
+                    let p = Vec3::new(x as f32, y as f32, 0.0);
+
+                    // Obtener coordenadas baricéntricas
+                    let (u, v, w) = barycentric_coordinates(&p, &v0.transformed_position, &v1.transformed_position, &v2.transformed_position);
 
                     // Verificar si el punto está dentro del triángulo
-                    if is_point_inside_triangle(&v0.transformed_position, &v1.transformed_position, &v2.transformed_position, &p) {
-                        // Llamar a la función triangle para rasterizar el triángulo
-                        fragments.extend(triangle(v0, v1, v2));
+                    if u >= 0.0 && v >= 0.0 && w >= 0.0 {
+                        // Interpolar color usando las coordenadas baricéntricas
+                        let r = (u * v0.color.r as f32 + v * v1.color.r as f32 + w * v2.color.r as f32) as u8;
+                        let g = (u * v0.color.g as f32 + v * v1.color.g as f32 + w * v2.color.g as f32) as u8;
+                        let b = (u * v0.color.b as f32 + v * v1.color.b as f32 + w * v2.color.b as f32) as u8;
+
+                        // Crear un fragmento interpolado
+                        let fragment = Fragment {
+                            position: Vec2::new(x as f32, y as f32),
+                            color: Color { r, g, b },
+                            depth: u * v0.transformed_position.z + v * v1.transformed_position.z + w * v2.transformed_position.z,
+                        };
+
+                        fragments.push(fragment);
                     }
                 }
             }
@@ -111,38 +143,16 @@ pub fn primitive_assembly_rasterization(vertex_array: &[Vertex]) -> Vec<Fragment
     fragments
 }
 
-// Verificar si un punto está dentro del triángulo usando el algoritmo baricéntrico
-fn is_point_inside_triangle(v0: &Vec3, v1: &Vec3, v2: &Vec3, p: &Vec2) -> bool {
-    let p0 = Vec2::new(v0.x, v0.y);
-    let p1 = Vec2::new(v1.x, v1.y);
-    let p2 = Vec2::new(v2.x, v2.y);
-
-    let area = edge_function(&p0, &p1, &p2);
-    let w0 = edge_function(&p1, &p2, p);
-    let w1 = edge_function(&p2, &p0, p);
-    let w2 = edge_function(&p0, &p1, p);
-
-    w0 >= 0.0 && w1 >= 0.0 && w2 >= 0.0 && (w0 + w1 + w2).abs() <= area.abs()
-}
-
-// Calcula el área de un triángulo para el algoritmo baricéntrico
-fn edge_function(v0: &Vec2, v1: &Vec2, p: &Vec2) -> f32 {
-    (p.x - v0.x) * (v1.y - v0.y) - (p.y - v0.y) * (v1.x - v0.x)
-}
-
-// Solo la etapa de Fragment Processing con el Vertex Shader y Primitive Assembly
+// Solo la etapa de Fragment Processing con el Vertex Shader y Rasterización
 pub fn render(framebuffer: &mut Framebuffer, uniforms: &Uniforms, vertex_array: &[Vertex]) {
-    let mut fragments: Vec<Fragment> = Vec::new();
-
     // Vertex Shader Stage: Aplicar transformaciones a los vértices
-    let mut transformed_vertices = Vec::new();
-    for vertex in vertex_array {
-        let transformed_vertex = vertex_shader(vertex, uniforms);
-        transformed_vertices.push(transformed_vertex);
-    }
+    let transformed_vertices: Vec<Vertex> = vertex_array
+        .iter()
+        .map(|vertex| vertex_shader(vertex, uniforms))
+        .collect();
 
     // Primitive Assembly y Rasterización
-    fragments = primitive_assembly_rasterization(&transformed_vertices);
+    let fragments = primitive_assembly_rasterization(&transformed_vertices);
 
     // Fragment Processing Stage: dibujar los fragmentos en el framebuffer
     for fragment in fragments {

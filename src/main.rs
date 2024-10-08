@@ -10,11 +10,12 @@ mod uniforms; // Importar uniforms.rs
 
 use framebuffer::Framebuffer;
 use color::Color;
-use vertex::Vertex;
 use nalgebra_glm::{Vec3, Mat4};
 use obj::Obj;
 use shader::vertex_shader;
 use uniforms::Uniforms; // Importar Uniforms desde uniforms.rs
+use vertex::Vertex;     // Asegurarse de importar Vertex correctamente
+
 
 fn create_model_matrix(translation: Vec3, scale: f32, _rotation: Vec3) -> Mat4 {
     let transform_matrix = Mat4::new(
@@ -51,34 +52,31 @@ fn main() {
     let rotation = Vec3::new(0.0, 0.0, 0.0);  // Sin rotación
 
     let model_matrix = create_model_matrix(translation, scale, rotation);
-    println!("Matriz de modelo creada: {:?}", model_matrix);
     
     // Crear la estructura Uniforms
     let uniforms = Uniforms {
         model_matrix,
     };
 
+    // Procesar los vértices mediante el vertex shader y dibujarlos
+    let transformed_vertices: Vec<Vertex> = vertices
+        .iter()
+        .map(|vertex| vertex_shader(&vertex, &uniforms))
+        .collect();
+
     // Escalar para asegurar que los vértices estén dentro de la ventana
     let scale_factor = 100.0;
     let offset_x = width as f32 / 2.0;
     let offset_y = height as f32 / 2.0;
 
-    // Procesar los vértices mediante el vertex shader y dibujarlos
-    for (i, vertex) in vertices.iter().enumerate() {
-        println!("Procesando vértice {} antes del shader: {:?}", i, vertex);
-
-        // Llamada al vertex shader
-        let transformed_vertex = vertex_shader(&vertex, &uniforms);
-        println!("Vértice {} después del shader: {:?}", i, transformed_vertex);
-
-        let x = transformed_vertex.position.x * scale_factor + offset_x;
-        let y = transformed_vertex.position.y * scale_factor + offset_y;
-
-        println!("Posición en pantalla: (x: {}, y: {})", x, y);
+    // Dibujar los vértices en el framebuffer
+    for vertex in transformed_vertices {
+        let x = vertex.position.x * scale_factor + offset_x;
+        let y = vertex.position.y * scale_factor + offset_y;
 
         // Nos aseguramos de que los vértices están dentro de los límites de la ventana antes de dibujarlos
         if x >= 0.0 && x < width as f32 && y >= 0.0 && y < height as f32 {
-            framebuffer.set_current_color(transformed_vertex.color);  // Usamos el color del vértice
+            framebuffer.set_current_color(vertex.color);  // Usamos el color del vértice
             framebuffer.point(x as isize, y as isize);  // Dibujamos el vértice
         }
     }
@@ -86,3 +84,4 @@ fn main() {
     // Renderizar la ventana con el contenido del framebuffer
     framebuffer.render_window();
 }
+
