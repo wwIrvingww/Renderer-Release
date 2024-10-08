@@ -2,10 +2,10 @@ use crate::color::Color;
 use crate::vertex::Vertex;
 use crate::fragment::Fragment;
 use crate::shader::vertex_shader;
-use crate::triangle::triangle; // Importa la función triangle para rasterizar los triángulos
+use crate::triangle::triangle;
 use crate::uniforms::Uniforms;
 use minifb::{Window, WindowOptions, Key};
-use nalgebra_glm::Vec2;
+use nalgebra_glm::{Vec2, Vec3};
 
 // Framebuffer para gestionar el buffer de píxeles
 pub struct Framebuffer {
@@ -65,19 +65,69 @@ impl Framebuffer {
     }
 }
 
-// Rasterización de triángulos usando la función triangle
+// Cálculo del Bounding Box que contiene el triángulo
+fn calculate_bounding_box(v1: &Vec3, v2: &Vec3, v3: &Vec3) -> (i32, i32, i32, i32) {
+    let min_x = v1.x.min(v2.x).min(v3.x).floor() as i32;
+    let min_y = v1.y.min(v2.y).min(v3.y).floor() as i32;
+    let max_x = v1.x.max(v2.x).max(v3.x).ceil() as i32;
+    let max_y = v1.y.max(v2.y).max(v3.y).ceil() as i32;
+    (min_x, min_y, max_x, max_y)
+}
+
+// Rasterización de triángulos usando Bounding Box y la función triangle
 pub fn primitive_assembly_rasterization(vertex_array: &[Vertex]) -> Vec<Fragment> {
     let mut fragments: Vec<Fragment> = Vec::new();
 
     // Recorrer el vertex_array en grupos de 3 (triángulos)
     for triangle_vertices in vertex_array.chunks(3) {
         if triangle_vertices.len() == 3 {
-            // Llamar a la función triangle para rasterizar el triángulo
-            fragments.extend(triangle(&triangle_vertices[0], &triangle_vertices[1], &triangle_vertices[2]));
+            let v0 = &triangle_vertices[0];
+            let v1 = &triangle_vertices[1];
+            let v2 = &triangle_vertices[2];
+
+            // Calcular el Bounding Box del triángulo
+            let (min_x, min_y, max_x, max_y) = calculate_bounding_box(
+                &v0.transformed_position,
+                &v1.transformed_position,
+                &v2.transformed_position,
+            );
+
+            // Restringimos la rasterización al área dentro del Bounding Box
+            for y in min_y..=max_y {
+                for x in min_x..=max_x {
+                    // Verificar si el punto (x, y) está dentro del triángulo
+                    let p = Vec2::new(x as f32, y as f32);
+
+                    // Verificar si el punto está dentro del triángulo
+                    if is_point_inside_triangle(&v0.transformed_position, &v1.transformed_position, &v2.transformed_position, &p) {
+                        // Llamar a la función triangle para rasterizar el triángulo
+                        fragments.extend(triangle(v0, v1, v2));
+                    }
+                }
+            }
         }
     }
 
     fragments
+}
+
+// Verificar si un punto está dentro del triángulo usando el algoritmo baricéntrico
+fn is_point_inside_triangle(v0: &Vec3, v1: &Vec3, v2: &Vec3, p: &Vec2) -> bool {
+    let p0 = Vec2::new(v0.x, v0.y);
+    let p1 = Vec2::new(v1.x, v1.y);
+    let p2 = Vec2::new(v2.x, v2.y);
+
+    let area = edge_function(&p0, &p1, &p2);
+    let w0 = edge_function(&p1, &p2, p);
+    let w1 = edge_function(&p2, &p0, p);
+    let w2 = edge_function(&p0, &p1, p);
+
+    w0 >= 0.0 && w1 >= 0.0 && w2 >= 0.0 && (w0 + w1 + w2).abs() <= area.abs()
+}
+
+// Calcula el área de un triángulo para el algoritmo baricéntrico
+fn edge_function(v0: &Vec2, v1: &Vec2, p: &Vec2) -> f32 {
+    (p.x - v0.x) * (v1.y - v0.y) - (p.y - v0.y) * (v1.x - v0.x)
 }
 
 // Solo la etapa de Fragment Processing con el Vertex Shader y Primitive Assembly
