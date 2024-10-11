@@ -4,17 +4,17 @@ use crate::fragment::Fragment;
 use crate::shader::vertex_shader;
 use crate::uniforms::Uniforms;
 use crate::line::line;
+use crate::fragment_shader::fragment_shader; // Asegúrate de que esté importado correctamente
+
 
 use minifb::{Window, WindowOptions, Key};
 use nalgebra_glm::{Vec2, Vec3};
-
 
 // Framebuffer para gestionar el buffer de píxeles
 pub struct Framebuffer {
     pub width: usize,
     pub height: usize,
     pub buffer: Vec<u32>,
-    current_color: u32,
 }
 
 impl Framebuffer {
@@ -23,7 +23,6 @@ impl Framebuffer {
             width,
             height,
             buffer: vec![0; width * height],
-            current_color: 0,
         }
     }
 
@@ -36,16 +35,11 @@ impl Framebuffer {
     }
 
     // Método para dibujar un punto en el framebuffer
-    pub fn point(&mut self, x: isize, y: isize) {
+    pub fn point(&mut self, x: isize, y: isize, color: Color) {
         if x >= 0 && y >= 0 && (x as usize) < self.width && (y as usize) < self.height {
             let index = (y as usize) * self.width + (x as usize);
-            self.buffer[index] = self.current_color;
+            self.buffer[index] = (255 << 24) | ((color.r as u32) << 16) | ((color.g as u32) << 8) | (color.b as u32);
         }
-    }
-
-    // Método para establecer el color actual
-    pub fn set_current_color(&mut self, color: Color) {
-        self.current_color = (255 << 24) | ((color.r as u32) << 16) | ((color.g as u32) << 8) | (color.b as u32);
     }
 
     // Método para renderizar la ventana utilizando minifb
@@ -97,6 +91,7 @@ fn barycentric_coordinates(p: &Vec3, a: &Vec3, b: &Vec3, c: &Vec3) -> (f32, f32,
 }
 
 // Rasterización de triángulos usando Bounding Box y las coordenadas baricéntricas
+// Rasterización de triángulos usando Bounding Box y las coordenadas baricéntricas
 pub fn primitive_assembly_rasterization(vertex_array: &[Vertex]) -> Vec<Fragment> {
     let mut fragments: Vec<Fragment> = Vec::new();
 
@@ -114,7 +109,7 @@ pub fn primitive_assembly_rasterization(vertex_array: &[Vertex]) -> Vec<Fragment
                 &v2.transformed_position,
             );
 
-            // Restringimos la rasterización al área dentro del Bounding Box
+            // Recorrer cada punto dentro del Bounding Box
             for y in min_y..=max_y {
                 for x in min_x..=max_x {
                     let p = Vec3::new(x as f32, y as f32, 0.0);
@@ -122,17 +117,12 @@ pub fn primitive_assembly_rasterization(vertex_array: &[Vertex]) -> Vec<Fragment
                     // Obtener coordenadas baricéntricas
                     let (u, v, w) = barycentric_coordinates(&p, &v0.transformed_position, &v1.transformed_position, &v2.transformed_position);
 
-                    // Verificar si el punto está dentro del triángulo
+                    // Si el punto está dentro del triángulo
                     if u >= 0.0 && v >= 0.0 && w >= 0.0 {
-                        // Interpolar color usando las coordenadas baricéntricas
-                        let r = (u * v0.color.r as f32 + v * v1.color.r as f32 + w * v2.color.r as f32) as u8;
-                        let g = (u * v0.color.g as f32 + v * v1.color.g as f32 + w * v2.color.g as f32) as u8;
-                        let b = (u * v0.color.b as f32 + v * v1.color.b as f32 + w * v2.color.b as f32) as u8;
-
-                        // Crear un fragmento interpolado
+                        // Generar un fragmento
                         let fragment = Fragment {
                             position: Vec2::new(x as f32, y as f32),
-                            color: Color { r, g, b },
+                            color: v0.color,  // Puedes mejorar la interpolación de colores
                             depth: u * v0.transformed_position.z + v * v1.transformed_position.z + w * v2.transformed_position.z,
                         };
 
@@ -146,8 +136,9 @@ pub fn primitive_assembly_rasterization(vertex_array: &[Vertex]) -> Vec<Fragment
     fragments
 }
 
-// Solo la etapa de Fragment Processing con el Vertex Shader y Rasterización
 
+// Solo la etapa de Fragment Processing con el Vertex Shader y Rasterización
+// Solo la etapa de Fragment Processing con el Vertex Shader y Rasterización
 pub fn render(framebuffer: &mut Framebuffer, uniforms: &Uniforms, vertex_array: &[Vertex], indices: &[u32]) {
     // Vertex Shader Stage: Aplicar transformaciones a los vértices
     let transformed_vertices: Vec<Vertex> = vertex_array
@@ -163,32 +154,42 @@ pub fn render(framebuffer: &mut Framebuffer, uniforms: &Uniforms, vertex_array: 
         let x = fragment.position.x as usize;
         let y = fragment.position.y as usize;
 
-        framebuffer.set_current_color(fragment.color);
-        framebuffer.point(x as isize, y as isize);
+        // Aplicar el fragment shader para modificar el color antes de pintarlo
+        let shaded_fragment = fragment_shader(&fragment);
+
+        framebuffer.point(x as isize, y as isize, shaded_fragment.color);
     }
 
     // Ahora dibujar el wireframe (líneas)
+    println!("Dibujando líneas del wireframe...");
     for chunk in indices.chunks(3) {
         let v0 = &transformed_vertices[chunk[0] as usize];
         let v1 = &transformed_vertices[chunk[1] as usize];
         let v2 = &transformed_vertices[chunk[2] as usize];
 
         // Cambiar el color para las líneas del wireframe
-        framebuffer.set_current_color(Color::new(0, 0, 0));  // Color negro para el wireframe
+        let wireframe_color = Color::new(0, 0, 0);  // Color negro para las líneas del wireframe
 
         // Dibuja las líneas entre los vértices del triángulo
+        println!("Línea de {:?} a {:?}", v0.position, v1.position);
         let fragments_v0_v1 = line(v0, v1);
+        println!("Generados {} fragmentos para línea v0 -> v1", fragments_v0_v1.len());
+
+        println!("Línea de {:?} a {:?}", v1.position, v2.position);
         let fragments_v1_v2 = line(v1, v2);
+        println!("Generados {} fragmentos para línea v1 -> v2", fragments_v1_v2.len());
+
+        println!("Línea de {:?} a {:?}", v2.position, v0.position);
         let fragments_v2_v0 = line(v2, v0);
+        println!("Generados {} fragmentos para línea v2 -> v0", fragments_v2_v0.len());
 
         // Dibujar los fragmentos de cada línea en el framebuffer (wireframe)
         for fragment in fragments_v0_v1.iter().chain(fragments_v1_v2.iter()).chain(fragments_v2_v0.iter()) {
             let x = fragment.position.x as usize;
             let y = fragment.position.y as usize;
 
-            framebuffer.set_current_color(fragment.color);
-            framebuffer.point(x as isize, y as isize);
+            println!("Dibujando punto en coordenadas: x: {}, y: {}", x, y);
+            framebuffer.point(x as isize, y as isize, wireframe_color);
         }
     }
 }
-
