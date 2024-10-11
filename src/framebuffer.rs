@@ -3,8 +3,11 @@ use crate::vertex::Vertex;
 use crate::fragment::Fragment;
 use crate::shader::vertex_shader;
 use crate::uniforms::Uniforms;
+use crate::line::line;
+
 use minifb::{Window, WindowOptions, Key};
 use nalgebra_glm::{Vec2, Vec3};
+
 
 // Framebuffer para gestionar el buffer de píxeles
 pub struct Framebuffer {
@@ -144,17 +147,18 @@ pub fn primitive_assembly_rasterization(vertex_array: &[Vertex]) -> Vec<Fragment
 }
 
 // Solo la etapa de Fragment Processing con el Vertex Shader y Rasterización
-pub fn render(framebuffer: &mut Framebuffer, uniforms: &Uniforms, vertex_array: &[Vertex]) {
+
+pub fn render(framebuffer: &mut Framebuffer, uniforms: &Uniforms, vertex_array: &[Vertex], indices: &[u32]) {
     // Vertex Shader Stage: Aplicar transformaciones a los vértices
     let transformed_vertices: Vec<Vertex> = vertex_array
         .iter()
         .map(|vertex| vertex_shader(vertex, uniforms))
         .collect();
 
-    // Primitive Assembly y Rasterización
+    // Primero rasterizar los triángulos (relleno)
     let fragments = primitive_assembly_rasterization(&transformed_vertices);
 
-    // Fragment Processing Stage: dibujar los fragmentos en el framebuffer
+    // Dibujar los fragmentos en el framebuffer (triángulos)
     for fragment in fragments {
         let x = fragment.position.x as usize;
         let y = fragment.position.y as usize;
@@ -162,4 +166,29 @@ pub fn render(framebuffer: &mut Framebuffer, uniforms: &Uniforms, vertex_array: 
         framebuffer.set_current_color(fragment.color);
         framebuffer.point(x as isize, y as isize);
     }
+
+    // Ahora dibujar el wireframe (líneas)
+    for chunk in indices.chunks(3) {
+        let v0 = &transformed_vertices[chunk[0] as usize];
+        let v1 = &transformed_vertices[chunk[1] as usize];
+        let v2 = &transformed_vertices[chunk[2] as usize];
+
+        // Cambiar el color para las líneas del wireframe
+        framebuffer.set_current_color(Color::new(0, 0, 0));  // Color negro para el wireframe
+
+        // Dibuja las líneas entre los vértices del triángulo
+        let fragments_v0_v1 = line(v0, v1);
+        let fragments_v1_v2 = line(v1, v2);
+        let fragments_v2_v0 = line(v2, v0);
+
+        // Dibujar los fragmentos de cada línea en el framebuffer (wireframe)
+        for fragment in fragments_v0_v1.iter().chain(fragments_v1_v2.iter()).chain(fragments_v2_v0.iter()) {
+            let x = fragment.position.x as usize;
+            let y = fragment.position.y as usize;
+
+            framebuffer.set_current_color(fragment.color);
+            framebuffer.point(x as isize, y as isize);
+        }
+    }
 }
+
