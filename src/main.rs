@@ -4,13 +4,16 @@ mod vertex;
 mod fragment;
 mod line;
 mod triangle;
+mod obj;
+mod uniforms;
+mod shader; // Importar el módulo shader
 
 use framebuffer::Framebuffer;
 use color::Color;
-use vertex::Vertex;
-use nalgebra_glm::Vec2;
-use nalgebra_glm::Vec3;
-use triangle::triangle;
+use nalgebra_glm::{Vec3, Mat4, look_at, perspective};
+use obj::Obj;
+use uniforms::Uniforms;
+use shader::render_with_shaders;
 
 fn main() {
     // Tamaño del framebuffer (ventana)
@@ -24,19 +27,26 @@ fn main() {
     let background_color = Color::new(0, 0, 20);
     framebuffer.clear(background_color);
 
-    // Definir tres vértices para dibujar un triángulo
-    let vertex_a = Vertex::new_with_color(Vec3::new(100.0, 100.0, 0.0), Color::new(255, 0, 0)); // Rojo
-    let vertex_b = Vertex::new_with_color(Vec3::new(400.0, 300.0, 0.0), Color::new(0, 255, 0)); // Verde
-    let vertex_c = Vertex::new_with_color(Vec3::new(200.0, 500.0, 0.0), Color::new(0, 0, 255)); // Azul
+    // Cargar un archivo .obj
+    let obj = Obj::load("src/assets/cube.obj").expect("Failed to load .obj file");
 
-    // Dibujar el triángulo entre los vértices
-    let fragments = triangle(&vertex_a, &vertex_b, &vertex_c);
+    // Obtener un array de vértices desde el archivo .obj
+    let vertex_array = obj.get_vertex_array();
 
-    // Dibujar cada fragmento en el framebuffer
-    for fragment in fragments {
-        framebuffer.set_current_color(fragment.color);
-        framebuffer.point(fragment.position.x as isize, fragment.position.y as isize);
-    }
+    // Configurar matrices de transformación
+    let model_matrix = Mat4::identity(); // No se aplica transformación en el modelo
+    let view_matrix = look_at(
+        &Vec3::new(0.0, 0.0, 5.0), // Cámara en (0, 0, 5)
+        &Vec3::new(0.0, 0.0, 0.0), // Mira hacia el origen
+        &Vec3::new(0.0, 1.0, 0.0), // Vector "arriba" en Y
+    );
+    let projection_matrix = perspective(800.0 / 600.0, 45.0_f32.to_radians(), 0.1, 100.0);
+
+    // Crear la estructura Uniforms con las matrices
+    let uniforms = Uniforms::new(model_matrix, view_matrix, projection_matrix);
+
+    // Renderizar el objeto utilizando los shaders
+    render_with_shaders(&mut framebuffer, &uniforms, &vertex_array);
 
     // Renderizar la ventana con el contenido del framebuffer
     framebuffer.render_window();
