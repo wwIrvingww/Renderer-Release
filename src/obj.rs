@@ -1,10 +1,12 @@
-// obj.rs
 use tobj;
 use nalgebra_glm::{Vec2, Vec3};
 use crate::vertex::Vertex;
-use crate::color::Color;
 
 pub struct Obj {
+    meshes: Vec<Mesh>,
+}
+
+struct Mesh {
     vertices: Vec<Vec3>,
     normals: Vec<Vec3>,
     texcoords: Vec<Vec2>,
@@ -19,51 +21,42 @@ impl Obj {
             ..Default::default()
         })?;
 
-        let mesh = &models[0].mesh;
+        let meshes = models.into_iter().map(|model| {
+            let mesh = model.mesh;
+            Mesh {
+                vertices: mesh.positions.chunks(3)
+                    .map(|v| Vec3::new(v[0], -v[1], -v[2]))
+                    .collect(),
+                normals: mesh.normals.chunks(3)
+                    .map(|n| Vec3::new(n[0], -n[1], -n[2]))
+                    .collect(),
+                texcoords: mesh.texcoords.chunks(2)
+                    .map(|t| Vec2::new(t[0], 1.0 - t[1]))
+                    .collect(),
+                indices: mesh.indices,
+            }
+        }).collect();
 
-        let vertices: Vec<Vec3> = mesh.positions.chunks(3)
-            .map(|v| Vec3::new(v[0], v[1], v[2]))
-            .collect();
-
-        let normals: Vec<Vec3> = mesh.normals.chunks(3)
-            .map(|n| Vec3::new(n[0], n[1], n[2]))
-            .collect();
-
-        let texcoords: Vec<Vec2> = mesh.texcoords.chunks(2)
-            .map(|t| Vec2::new(t[0], t[1]))
-            .collect();
-
-        let indices = mesh.indices.clone();
-
-        Ok(Obj {
-            vertices,
-            normals,
-            texcoords,
-            indices,
-        })
+        Ok(Obj { meshes })
     }
 
     pub fn get_vertex_array(&self) -> Vec<Vertex> {
-        let mut vertex_array = Vec::new();
+        let mut vertices = Vec::new();
 
-        for &index in &self.indices {
-            let pos = self.vertices[index as usize];
-            let normal = self.normals.get(index as usize).cloned().unwrap_or(Vec3::new(0.0, 0.0, 0.0));
-            let texcoord = self.texcoords.get(index as usize).cloned().unwrap_or(Vec2::new(0.0, 0.0));
+        for mesh in &self.meshes {
+            for &index in &mesh.indices {
+                let position = mesh.vertices[index as usize];
+                let normal = mesh.normals.get(index as usize)
+                    .cloned()
+                    .unwrap_or(Vec3::new(0.0, 1.0, 0.0));
+                let tex_coords = mesh.texcoords.get(index as usize)
+                    .cloned()
+                    .unwrap_or(Vec2::new(0.0, 0.0));
 
-            // Crear un vértice utilizando la posición, normal y coordenadas de textura
-            let vertex = Vertex {
-                position: pos,
-                normal,
-                tex_coords: texcoord,
-                color: Color::black(), // Color negro por defecto, puedes ajustarlo si es necesario
-                transformed_position: pos,
-                transformed_normal: normal,
-            };
-
-            vertex_array.push(vertex);
+                vertices.push(Vertex::new(position, normal, tex_coords));
+            }
         }
 
-        vertex_array
+        vertices
     }
 }

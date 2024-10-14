@@ -1,70 +1,43 @@
-use crate::framebuffer::Framebuffer;
+use nalgebra_glm::{Vec3, Vec4, Mat3};
 use crate::vertex::Vertex;
-use crate::fragment::Fragment; // Cambiar para usar Fragment en lugar de Vertex
-use crate::color::Color;
-use crate::uniforms::Uniforms;
-use nalgebra_glm::Vec3;
+use crate::Uniforms;
 
-// Simulación de un simple vertex shader que transforma las posiciones
 pub fn vertex_shader(vertex: &Vertex, uniforms: &Uniforms) -> Vertex {
-    // Aplicamos transformaciones modelo, vista y proyección
-    let transformed_position = uniforms.projection_matrix
-        * uniforms.view_matrix
-        * uniforms.model_matrix
-        * vertex.position.to_homogeneous();
+  // Transform position
+  let position = Vec4::new(
+    vertex.position.x,
+    vertex.position.y,
+    vertex.position.z,
+    1.0
+  );
+  let transformed = uniforms.model_matrix * position;
 
-    // Retornamos el vértice transformado
-    Vertex {
-        transformed_position: Vec3::new(
-            transformed_position.x,
-            transformed_position.y,
-            transformed_position.z,
-        ),
-        ..*vertex // Copiar el resto de las propiedades del vértice
-    }
-}
+  // Perform perspective division
+  let w = transformed.w;
+  let transformed_position = Vec3::new(
+    transformed.x / w,
+    transformed.y / w,
+    transformed.z / w
+  );
 
-// Simulación de un fragment shader básico que cambia el color
-pub fn fragment_shader(fragment: &Fragment) -> Color {  // Cambiamos para aceptar un Fragment
-    // Cambiar el color del fragmento basado en su posición, como un ejemplo simple
-    Color::new(
-        (fragment.position.x.abs() * 255.0) as u8,
-        (fragment.position.y.abs() * 255.0) as u8,
-        128, // Un valor constante en azul
-    )
-}
+  // Transform normal
 
-// Función para renderizar los vértices utilizando los shaders
-pub fn render_with_shaders(
-    framebuffer: &mut Framebuffer,
-    uniforms: &Uniforms,
-    vertex_array: &[Vertex],
-) {
-    let mut transformed_vertices = Vec::new();
+  let model_mat3 = Mat3::new(
+    uniforms.model_matrix[0], uniforms.model_matrix[1], uniforms.model_matrix[2],
+    uniforms.model_matrix[4], uniforms.model_matrix[5], uniforms.model_matrix[6],
+    uniforms.model_matrix[8], uniforms.model_matrix[9], uniforms.model_matrix[10]
+  );
+  let normal_matrix = model_mat3.transpose().try_inverse().unwrap_or(Mat3::identity());
 
-    // Vertex Shader Stage: aplicamos las transformaciones a los vértices
-    for vertex in vertex_array {
-        let transformed_vertex = vertex_shader(vertex, uniforms);
-        transformed_vertices.push(transformed_vertex);
-    }
+  let transformed_normal = normal_matrix * vertex.normal;
 
-    // Rasterization Stage: convertimos los vértices en fragmentos (triángulos)
-    let mut fragments = Vec::new();
-    for i in (0..transformed_vertices.len()).step_by(3) {
-        if i + 2 < transformed_vertices.len() {
-            let v1 = &transformed_vertices[i];
-            let v2 = &transformed_vertices[i + 1];
-            let v3 = &transformed_vertices[i + 2];
-
-            // Usamos la función triangle para rasterizar los triángulos en fragmentos
-            fragments.extend(crate::triangle::triangle(v1, v2, v3));
-        }
-    }
-
-    // Fragment Shader Stage: procesamos los fragmentos y los dibujamos en el framebuffer
-    for fragment in fragments {
-        let color = fragment_shader(&fragment); // Aplicamos el fragment shader
-        framebuffer.set_current_color(color);
-        framebuffer.point(fragment.position.x as isize, fragment.position.y as isize);
-    }
+  // Create a new Vertex with transformed attributes
+  Vertex {
+    position: vertex.position,
+    normal: vertex.normal,
+    tex_coords: vertex.tex_coords,
+    color: vertex.color,
+    transformed_position,
+    transformed_normal,
+  }
 }
