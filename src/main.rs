@@ -108,7 +108,7 @@ fn main() {
 
     let mut framebuffer = Framebuffer::new(framebuffer_width, framebuffer_height);
     let mut window = Window::new(
-        "Rust Graphics",
+        "INTERSTELLAR",
         window_width,
         window_height,
         WindowOptions::default(),
