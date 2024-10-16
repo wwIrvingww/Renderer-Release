@@ -38,4 +38,8 @@ Para ejecutar este proyecto en modo de lanzamiento, sigue estos pasos:
 - `minifb`: Para la gestión de ventanas y gráficos.
 - Otros módulos internos para manejar el framebuffer, shader, y procesamiento de vértices.
 
+### Imagen
+
+![Spaceship 3D Model](spaceship.png)
+
 
