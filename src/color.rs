@@ -1,96 +1,79 @@
-use std::ops::{Add, Mul};
+use std::fmt;
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct Color {
-    pub r: u8,
-    pub g: u8,
-    pub b: u8,
+  r: u8,
+  g: u8,
+  b: u8,
 }
 
 impl Color {
-    // Constructor que recibe valores RGB
-    pub fn new(r: u8, g: u8, b: u8) -> Color {
-        Color { r, g, b }
+  // Constructor to initialize the color using r, g, b values as u8
+  pub fn new(r: u8, g: u8, b: u8) -> Self {
+    Color { r, g, b }
+  }
+
+  // default color
+  pub fn black() -> Self {
+    Color { r: 0, g: 0, b: 0 }
+  }
+
+  // New constructor to initialize the color using r, g, b values as f32 (0.0 to 1.0)
+  pub fn from_float(r: f32, g: f32, b: f32) -> Self {
+    Color {
+      r: (r.clamp(0.0, 1.0) * 255.0) as u8,
+      g: (g.clamp(0.0, 1.0) * 255.0) as u8,
+      b: (b.clamp(0.0, 1.0) * 255.0) as u8,
     }
+  }
 
-    // Constructor que recibe un valor HEX
-    pub fn from_hex(hex: &str) -> Result<Color, &'static str> {
-        if hex.len() != 6 {
-            return Err("Hex color must be 6 characters long.");
-        }
+  // Function to create a color from a hex value
+  pub fn from_hex(hex: u32) -> Self {
+    let r = ((hex >> 16) & 0xFF) as u8;
+    let g = ((hex >> 8) & 0xFF) as u8;
+    let b = (hex & 0xFF) as u8;
+    Color { r, g, b }
+  }
 
-        let r = u8::from_str_radix(&hex[0..2], 16).map_err(|_| "Invalid hex value")?;
-        let g = u8::from_str_radix(&hex[2..4], 16).map_err(|_| "Invalid hex value")?;
-        let b = u8::from_str_radix(&hex[4..6], 16).map_err(|_| "Invalid hex value")?;
-
-        Ok(Color { r, g, b })
-    }
-
-    // Método para crear un color negro
-    pub fn black() -> Color {
-        Color { r: 0, g: 0, b: 0 }
-    }
-
-    // Clamping de valores RGB entre 0 y 255
-    fn clamp(value: i32) -> u8 {
-        if value < 0 {
-            0
-        } else if value > 255 {
-            255
-        } else {
-            value as u8
-        }
-    }
-
-    // Sumar dos colores sin sobrepasar el valor de 255
-    pub fn add(&self, other: &Color) -> Color {
-        Color {
-            r: Color::clamp(self.r as i32 + other.r as i32),
-            g: Color::clamp(self.g as i32 + other.g as i32),
-            b: Color::clamp(self.b as i32 + other.b as i32),
-        }
-    }
-
-    // Multiplicar un color por un número
-    pub fn multiply(&self, scalar: f32) -> Color {
-        Color {
-            r: Color::clamp((self.r as f32 * scalar) as i32),
-            g: Color::clamp((self.g as f32 * scalar) as i32),
-            b: Color::clamp((self.b as f32 * scalar) as i32),
-        }
-    }
+  // Function to return the color as a hex value
+  pub fn to_hex(&self) -> u32 {
+    ((self.r as u32) << 16) | ((self.g as u32) << 8) | (self.b as u32)
+  }
 }
 
-// Implementar el trait Display para la estructura Color
-use std::fmt;
-impl fmt::Display for Color {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Color(r: {}, g: {}, b: {})", self.r, self.g, self.b)
-    }
-}
+// Implement addition for Color
+use std::ops::Add;
 
-// Implementación del operador Mul para Color
-impl Mul<f32> for Color {
-    type Output = Color;
-
-    fn mul(self, scalar: f32) -> Color {
-        Color {
-            r: Color::clamp((self.r as f32 * scalar) as i32),
-            g: Color::clamp((self.g as f32 * scalar) as i32),
-            b: Color::clamp((self.b as f32 * scalar) as i32),
-        }
-    }
-}
-
-// Implementación del operador Add para Color
 impl Add for Color {
-    type Output = Color;
+  type Output = Color;
 
-    fn add(self, other: Color) -> Color {
-        Color {
-            r: Color::clamp(self.r as i32 + other.r as i32),
-            g: Color::clamp(self.g as i32 + other.g as i32),
-            b: Color::clamp(self.b as i32 + other.b as i32),
-        }
+  fn add(self, other: Color) -> Color {
+    Color {
+      r: self.r.saturating_add(other.r),
+      g: self.g.saturating_add(other.g),
+      b: self.b.saturating_add(other.b),
     }
+  }
+}
+
+// Implement multiplication by a constant for Color
+use std::ops::Mul;
+
+impl Mul<f32> for Color {
+  type Output = Color;
+
+  fn mul(self, scalar: f32) -> Color {
+    Color {
+      r: (self.r as f32 * scalar).clamp(0.0, 255.0) as u8,
+      g: (self.g as f32 * scalar).clamp(0.0, 255.0) as u8,
+      b: (self.b as f32 * scalar).clamp(0.0, 255.0) as u8,
+    }
+  }
+}
+
+// Implement display formatting for Color
+impl fmt::Display for Color {
+  fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    write!(f, "Color(r: {}, g: {}, b: {})", self.r, self.g, self.b)
+  }
 }
