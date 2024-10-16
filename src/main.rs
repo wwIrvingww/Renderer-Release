@@ -120,9 +120,9 @@ fn main() {
 
     framebuffer.set_background_color(0x433878);
 
-    let mut translation = Vec3::new(300.0, 200.0, 0.0);
-    let mut rotation = Vec3::new(0.0, 0.0, 0.0);
-    let mut scale = 100.0f32;
+    let mut translation = Vec3::new(300.0, 550.0, 0.0); // Mueve el modelo a la posición (100, 100, 0)
+    let mut rotation = Vec3::new(0.0, std::f32::consts::PI / 10.0, 0.0); // Iniciar rotado en el eje Y
+    let mut scale = 25.0f32; // Inicia con un zoom out
 
     let obj = Obj::load("src/assets/spaceship.obj").expect("Failed to load obj");
     let vertex_arrays = obj.get_vertex_array(); 
@@ -151,40 +151,35 @@ fn main() {
 }
 
 fn handle_input(window: &Window, translation: &mut Vec3, rotation: &mut Vec3, scale: &mut f32) {
-    if window.is_key_down(Key::Right) {
-        translation.x += 10.0;
+    // Rotación en el eje Y (rotar horizontalmente el modelo)
+    if window.is_key_down(Key::A) {
+        rotation.y -= PI / 10.0; // Girar a la izquierda
     }
-    if window.is_key_down(Key::Left) {
-        translation.x -= 10.0;
+    if window.is_key_down(Key::D) {
+        rotation.y += PI / 10.0; // Girar a la derecha
     }
-    if window.is_key_down(Key::Up) {
-        translation.y -= 10.0;
-    }
-    if window.is_key_down(Key::Down) {
-        translation.y += 10.0;
+
+    // Rotación en el eje X (rotar arriba/abajo)
+    if window.is_key_down(Key::W) {
+        rotation.x += PI / 10.0; // Girar hacia arriba
     }
     if window.is_key_down(Key::S) {
-        *scale += 2.0;
+        rotation.x -= PI / 10.0; // Girar hacia abajo
     }
-    if window.is_key_down(Key::A) {
-        *scale -= 2.0;
-    }
+
+    // Rotación en el eje Z (rotar en su propio plano)
     if window.is_key_down(Key::Q) {
-        rotation.x -= PI / 10.0;
-    }
-    if window.is_key_down(Key::W) {
-        rotation.x += PI / 10.0;
+        rotation.z -= PI / 10.0; // Girar hacia la izquierda
     }
     if window.is_key_down(Key::E) {
-        rotation.y -= PI / 10.0;
+        rotation.z += PI / 10.0; // Girar hacia la derecha
     }
-    if window.is_key_down(Key::R) {
-        rotation.y += PI / 10.0;
-    }
+
+    // Escala (zoom)
     if window.is_key_down(Key::T) {
-        rotation.z -= PI / 10.0;
+        *scale += 2.0; // Zoom in
     }
     if window.is_key_down(Key::Y) {
-        rotation.z += PI / 10.0;
+        *scale -= 2.0; // Zoom out
     }
 }
