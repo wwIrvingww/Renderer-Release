@@ -1,4 +1,4 @@
-use nalgebra_glm::{look_at, Vec3, Mat4};
+use nalgebra_glm::{look_at, perspective, Vec3, Mat4};  // Importa la función perspective
 use minifb::{Key, Window, WindowOptions};
 use std::time::Duration;
 use std::f32::consts::PI;
@@ -18,54 +18,44 @@ use obj::Obj;
 use triangle::triangle;
 use shader::vertex_shader;
 
+// Estructura de uniformes con la matriz de proyección
 pub struct Uniforms {
     model_matrix: Mat4,
-    view_matrix: Mat4,  // Añadir la matriz de vista
+    view_matrix: Mat4,
+    projection_matrix: Mat4,
+    viewport_matrix: Mat4,  // Añadir la matriz de viewport
 }
 
+fn create_viewport_matrix(width: f32, height: f32) -> Mat4 {
+    Mat4::new(
+        width / 2.0, 0.0, 0.0, width / 2.0,
+        0.0, -height / 2.0, 0.0, height / 2.0,
+        0.0, 0.0, 1.0, 0.0,
+        0.0, 0.0, 0.0, 1.0
+    )
+}
+
+// Función para crear la matriz de proyección
+fn create_projection_matrix(window_width: f32, window_height: f32) -> Mat4 {
+    let fov = 45.0 * PI / 180.0;  // Campo de visión en radianes
+    let aspect_ratio = window_width / window_height;  // Relación de aspecto
+    let near = 0.1;  // Plano de recorte cercano
+    let far = 100.0;  // Plano de recorte lejano
+    perspective(fov, aspect_ratio, near, far)
+}
+
+// Función para crear la matriz de vista
 fn create_view_matrix(eye: Vec3, center: Vec3, up: Vec3) -> Mat4 {
     look_at(&eye, &center, &up)
 }
 
-
-fn create_model_matrix(translation: Vec3, scale: f32, rotation: Vec3) -> Mat4 {
-    let (sin_x, cos_x) = rotation.x.sin_cos();
-    let (sin_y, cos_y) = rotation.y.sin_cos();
-    let (sin_z, cos_z) = rotation.z.sin_cos();
-
-    let rotation_matrix_x = Mat4::new(
-        1.0,  0.0,    0.0,   0.0,
-        0.0,  cos_x, -sin_x, 0.0,
-        0.0,  sin_x,  cos_x, 0.0,
-        0.0,  0.0,    0.0,   1.0,
-    );
-
-    let rotation_matrix_y = Mat4::new(
-        cos_y,  0.0,  sin_y, 0.0,
-        0.0,    1.0,  0.0,   0.0,
-        -sin_y, 0.0,  cos_y, 0.0,
-        0.0,    0.0,  0.0,   1.0,
-    );
-
-    let rotation_matrix_z = Mat4::new(
-        cos_z, -sin_z, 0.0, 0.0,
-        sin_z,  cos_z, 0.0, 0.0,
-        0.0,    0.0,  1.0, 0.0,
-        0.0,    0.0,  0.0, 1.0,
-    );
-
-    let rotation_matrix = rotation_matrix_z * rotation_matrix_y * rotation_matrix_x;
-
-    let transform_matrix = Mat4::new(
-        scale, 0.0,   0.0,   translation.x,
-        0.0,   scale, 0.0,   translation.y,
-        0.0,   0.0,   scale, translation.z,
-        0.0,   0.0,   0.0,   1.0,
-    );
-
-    transform_matrix * rotation_matrix
+// Función para crear la matriz de modelo (matriz identidad)
+fn create_model_matrix(_translation: Vec3, _scale: f32, _rotation: Vec3) -> Mat4 {
+    Mat4::identity()  // Devolver la matriz identidad
 }
 
+
+// Render loop
 fn render(framebuffer: &mut Framebuffer, uniforms: &Uniforms, vertex_array: &[Vertex]) {
     // Vertex Shader Stage
     let mut transformed_vertices = Vec::with_capacity(vertex_array.len());
@@ -105,7 +95,6 @@ fn render(framebuffer: &mut Framebuffer, uniforms: &Uniforms, vertex_array: &[Ve
 }
 
 fn main() {
-    // Dimensiones de la ventana
     let window_width = 800;
     let window_height = 600;
     let framebuffer_width = 800;
@@ -132,8 +121,8 @@ fn main() {
     let mut scale = 25.0f32;
 
     // Parámetros de la cámara (eye, target, up)
-    let mut eye = Vec3::new(0.0, 0.0, 5.0);  // Posición de la cámara
-    let target = Vec3::new(0.0, 0.0, 0.0);  // A dónde está mirando
+    let mut eye = Vec3::new(0.0, 0.0, 20.0);  // Posición de la cámara
+    let target = Vec3::new(0.0, -10.0, 0.0);  // A dónde está mirando
     let up = Vec3::new(0.0, 1.0, 0.0);  // Vector "arriba" de la cámara
 
     let obj = Obj::load("src/assets/spaceship.obj").expect("Failed to load obj");
@@ -151,7 +140,15 @@ fn main() {
         // Calcular matrices
         let model_matrix = create_model_matrix(translation, scale, rotation);
         let view_matrix = create_view_matrix(eye, target, up);  // Matriz de vista
-        let uniforms = Uniforms { model_matrix, view_matrix };
+        let projection_matrix = create_projection_matrix(window_width as f32, window_height as f32);  // Matriz de proyección
+        let viewport_matrix = create_viewport_matrix(framebuffer_width as f32, framebuffer_height as f32);  // Matriz de viewport
+
+        let uniforms = Uniforms {
+            model_matrix,
+            view_matrix,
+            projection_matrix,
+            viewport_matrix,  // Añadir matriz de viewport a los uniformes
+        };
 
         framebuffer.set_current_color(0xFFDDDD);
         render(&mut framebuffer, &uniforms, &vertex_arrays);
@@ -164,7 +161,8 @@ fn main() {
     }
 }
 
-// Ahora la función `handle_input` manejará el movimiento de la cámara, actualizando la posición del "eye".
+
+// Manejo de entrada para mover la cámara
 fn handle_input(window: &Window, translation: &mut Vec3, rotation: &mut Vec3, scale: &mut f32, eye: &mut Vec3) {
     let move_speed = 10.0;
 
@@ -213,4 +211,3 @@ fn handle_input(window: &Window, translation: &mut Vec3, rotation: &mut Vec3, sc
         *scale -= 2.0;
     }
 }
-
