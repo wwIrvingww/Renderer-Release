@@ -151,6 +151,22 @@ fn main() {
 }
 
 fn handle_input(window: &Window, translation: &mut Vec3, rotation: &mut Vec3, scale: &mut f32) {
+    // Movimiento en el eje X e Y usando las flechas de dirección
+    let move_speed = 10.0; // Ajusta la velocidad de movimiento
+
+    if window.is_key_down(Key::Up) {
+        translation.y -= move_speed; // Mover hacia arriba
+    }
+    if window.is_key_down(Key::Down) {
+        translation.y += move_speed; // Mover hacia abajo
+    }
+    if window.is_key_down(Key::Left) {
+        translation.x -= move_speed; // Mover hacia la izquierda
+    }
+    if window.is_key_down(Key::Right) {
+        translation.x += move_speed; // Mover hacia la derecha
+    }
+
     // Rotación en el eje Y (rotar horizontalmente el modelo)
     if window.is_key_down(Key::A) {
         rotation.y -= PI / 10.0; // Girar a la izquierda
