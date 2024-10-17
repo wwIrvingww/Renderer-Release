@@ -23,7 +23,7 @@ pub struct Uniforms {
     model_matrix: Mat4,
     view_matrix: Mat4,
     projection_matrix: Mat4,
-    viewport_matrix: Mat4,  // Añadir la matriz de viewport
+    viewport_matrix: Mat4,
 }
 
 fn create_viewport_matrix(width: f32, height: f32) -> Mat4 {
@@ -50,10 +50,9 @@ fn create_view_matrix(eye: Vec3, center: Vec3, up: Vec3) -> Mat4 {
 }
 
 // Función para crear la matriz de modelo (matriz identidad)
-fn create_model_matrix(_translation: Vec3, _scale: f32, _rotation: Vec3) -> Mat4 {
+fn create_model_matrix() -> Mat4 {
     Mat4::identity()  // Devolver la matriz identidad
 }
-
 
 // Render loop
 fn render(framebuffer: &mut Framebuffer, uniforms: &Uniforms, vertex_array: &[Vertex]) {
@@ -122,7 +121,7 @@ fn main() {
 
     // Parámetros de la cámara (eye, target, up)
     let mut eye = Vec3::new(0.0, 0.0, 20.0);  // Posición de la cámara
-    let target = Vec3::new(0.0, -10.0, 0.0);  // A dónde está mirando
+    let mut target = Vec3::new(0.0, 0.0, 0.0);  // A dónde está mirando
     let up = Vec3::new(0.0, 1.0, 0.0);  // Vector "arriba" de la cámara
 
     let obj = Obj::load("src/assets/spaceship.obj").expect("Failed to load obj");
@@ -133,12 +132,12 @@ fn main() {
             break;
         }
 
-        handle_input(&window, &mut translation, &mut rotation, &mut scale, &mut eye);
+        handle_input(&window, &mut translation, &mut rotation, &mut scale, &mut eye, &mut target);
 
         framebuffer.clear();
 
         // Calcular matrices
-        let model_matrix = create_model_matrix(translation, scale, rotation);
+        let model_matrix = create_model_matrix();
         let view_matrix = create_view_matrix(eye, target, up);  // Matriz de vista
         let projection_matrix = create_projection_matrix(window_width as f32, window_height as f32);  // Matriz de proyección
         let viewport_matrix = create_viewport_matrix(framebuffer_width as f32, framebuffer_height as f32);  // Matriz de viewport
@@ -161,23 +160,10 @@ fn main() {
     }
 }
 
-
 // Manejo de entrada para mover la cámara
-fn handle_input(window: &Window, translation: &mut Vec3, rotation: &mut Vec3, scale: &mut f32, eye: &mut Vec3) {
+fn handle_input(window: &Window, _translation: &mut Vec3, _rotation: &mut Vec3, _scale: &mut f32, eye: &mut Vec3, target: &mut Vec3) {
     let move_speed = 10.0;
-
-    if window.is_key_down(Key::Up) {
-        translation.y -= move_speed;
-    }
-    if window.is_key_down(Key::Down) {
-        translation.y += move_speed;
-    }
-    if window.is_key_down(Key::Left) {
-        translation.x -= move_speed;
-    }
-    if window.is_key_down(Key::Right) {
-        translation.x += move_speed;
-    }
+    let rotate_speed = PI / 100.0;
 
     // Movimiento de la cámara (eye)
     if window.is_key_down(Key::W) {
@@ -186,28 +172,24 @@ fn handle_input(window: &Window, translation: &mut Vec3, rotation: &mut Vec3, sc
     if window.is_key_down(Key::S) {
         eye.z += move_speed * 0.1;  // Mover la cámara hacia atrás
     }
-
-    // Rotación en el eje Y
     if window.is_key_down(Key::A) {
-        rotation.y -= PI / 10.0;
+        eye.x -= move_speed * 0.1;  // Mover la cámara hacia la izquierda
     }
     if window.is_key_down(Key::D) {
-        rotation.y += PI / 10.0;
+        eye.x += move_speed * 0.1;  // Mover la cámara hacia la derecha
     }
 
-    // Rotación en el eje X
-    if window.is_key_down(Key::Q) {
-        rotation.x -= PI / 10.0;
+    // Rotación de la cámara (cambiando el "target" para simular rotación)
+    if window.is_key_down(Key::Left) {
+        target.x -= rotate_speed;  // Rotar la vista hacia la izquierda
     }
-    if window.is_key_down(Key::E) {
-        rotation.x += PI / 10.0;
+    if window.is_key_down(Key::Right) {
+        target.x += rotate_speed;  // Rotar la vista hacia la derecha
     }
-
-    // Zoom (escalar)
-    if window.is_key_down(Key::T) {
-        *scale += 2.0;
+    if window.is_key_down(Key::Up) {
+        target.y += rotate_speed;  // Rotar la vista hacia arriba
     }
-    if window.is_key_down(Key::Y) {
-        *scale -= 2.0;
+    if window.is_key_down(Key::Down) {
+        target.y -= rotate_speed;  // Rotar la vista hacia abajo
     }
 }
