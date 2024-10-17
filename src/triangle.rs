@@ -37,21 +37,19 @@ pub fn triangle(v1: &Vertex, v2: &Vertex, v3: &Vertex) -> Vec<Fragment> {
       if w1 >= 0.0 && w1 <= 1.0 && 
          w2 >= 0.0 && w2 <= 1.0 &&
          w3 >= 0.0 && w3 <= 1.0 {
-        // Interpolate normal
-        // let normal = v1.transformed_normal * w1 + v2.transformed_normal * w2 + v3.transformed_normal * w3;
-        let normal = v1.transformed_normal;
+        // Interpolación de normal
+        let normal = v1.transformed_normal * w1 + v2.transformed_normal * w2 + v3.transformed_normal * w3;
         let normal = normal.normalize();
 
-        // Calculate lighting intensity
+        // Calcular la intensidad de la luz
         let intensity = dot(&normal, &light_dir).max(0.0);
 
-        // Create a gray color and apply lighting
-        let base_color = Color::new(100, 100, 100); // Medium gray
+        // Crear color base y aplicar iluminación
+        let base_color = Color::new(100, 100, 100); // Gris medio
         let lit_color = base_color * intensity;
 
-        // Interpolate depth
-        // let depth = a.z * w1 + b.z * w2 + c.z * w3;
-        let depth = a.z;
+        // Interpolación de profundidad (z-index)
+        let depth = a.z * w1 + b.z * w2 + c.z * w3;
 
         fragments.push(Fragment::new(x as f32, y as f32, lit_color, depth));
       }
