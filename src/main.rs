@@ -11,12 +11,14 @@ mod obj;
 mod color;
 mod fragment;
 mod shader;
+mod camera;  // Asegúrate de importar tu módulo de cámara
 
 use framebuffer::Framebuffer;
 use vertex::Vertex;
 use obj::Obj;
 use triangle::triangle;
 use shader::vertex_shader;
+use camera::Camera;  // Importa la estructura Camera
 
 pub struct Uniforms {
     model_matrix: Mat4,
@@ -41,10 +43,6 @@ fn create_projection_matrix(window_width: f32, window_height: f32) -> Mat4 {
     let near = 0.1;
     let far = 100.0;
     perspective(fov, aspect_ratio, near, far)
-}
-
-fn create_view_matrix(eye: Vec3, center: Vec3, up: Vec3) -> Mat4 {
-    look_at(&eye, &center, &up)
 }
 
 fn create_model_matrix() -> Mat4 {
@@ -111,9 +109,7 @@ fn main() {
 
     framebuffer.set_background_color(0x433878);
 
-    let mut eye = Vec3::new(0.0, 0.0, 25.0);
-    let mut target = Vec3::new(0.0, -10.0, 0.0);
-    let up = Vec3::new(0.0, 1.0, 0.0);
+    let mut camera = Camera::new(Vec3::new(0.0, 0.0, 25.0), Vec3::new(0.0, -10.0, 0.0), Vec3::new(0.0, 1.0, 0.0));
 
     let obj = Obj::load("src/assets/spaceship.obj").expect("Failed to load obj");
     let vertex_arrays = obj.get_vertex_array();
@@ -123,17 +119,17 @@ fn main() {
             break;
         }
 
-        handle_input(&window, &mut eye, &mut target);
+        // Manejar la entrada de la cámara para orbit y zoom
+        handle_input(&window, &mut camera);
 
         framebuffer.clear();
 
         // Calcular matrices
         let model_matrix = create_model_matrix();
-        let view_matrix = create_view_matrix(eye, target, up);
+        let view_matrix = camera.get_view_matrix();  // Usar la cámara para obtener la matriz de vista
         let projection_matrix = create_projection_matrix(window_width as f32, window_height as f32);
         let viewport_matrix = create_viewport_matrix(framebuffer_width as f32, framebuffer_height as f32);
 
-        // Precálculo de la matriz de transformación completa
         let transformation_matrix = viewport_matrix * projection_matrix * view_matrix * model_matrix;
 
         let uniforms = Uniforms {
@@ -156,33 +152,29 @@ fn main() {
 }
 
 // Manejo de entrada para mover la cámara
-fn handle_input(window: &Window, eye: &mut Vec3, target: &mut Vec3) {
-    let move_speed = 10.0;
-    let rotate_speed = PI / 10.0;
+fn handle_input(window: &Window, camera: &mut Camera) {
+    let orbit_speed = PI / 50.0;  // Ajustar la velocidad de la órbita
+    let zoom_speed = 0.5;  // Ajustar la velocidad del zoom
 
-    if window.is_key_down(Key::W) {
-        eye.z -= move_speed * 0.1;
-    }
-    if window.is_key_down(Key::S) {
-        eye.z += move_speed * 0.1;
-    }
-    if window.is_key_down(Key::A) {
-        eye.x -= move_speed * 0.1;
-    }
-    if window.is_key_down(Key::D) {
-        eye.x += move_speed * 0.1;
-    }
-
+    // Orbitar con las teclas de flecha
     if window.is_key_down(Key::Left) {
-        target.x -= rotate_speed;
+        camera.orbit(orbit_speed, 0.0);  // Rotar alrededor del eje Y
     }
     if window.is_key_down(Key::Right) {
-        target.x += rotate_speed;
+        camera.orbit(-orbit_speed, 0.0);  // Rotar alrededor del eje Y en la otra dirección
     }
     if window.is_key_down(Key::Up) {
-        target.y += rotate_speed;
+        camera.orbit(0.0, orbit_speed);  // Rotar alrededor del eje X (arriba/abajo)
     }
     if window.is_key_down(Key::Down) {
-        target.y -= rotate_speed;
+        camera.orbit(0.0, -orbit_speed);  // Rotar hacia abajo
+    }
+
+    // Zoom con W y S
+    if window.is_key_down(Key::W) {
+        camera.zoom(-zoom_speed);  // Acercar
+    }
+    if window.is_key_down(Key::S) {
+        camera.zoom(zoom_speed);  // Alejar
     }
 }
