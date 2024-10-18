@@ -18,12 +18,12 @@ use obj::Obj;
 use triangle::triangle;
 use shader::vertex_shader;
 
-// Estructura de uniformes con la matriz de proyección
 pub struct Uniforms {
     model_matrix: Mat4,
     view_matrix: Mat4,
     projection_matrix: Mat4,
     viewport_matrix: Mat4,
+    transformation_matrix: Mat4,  // Nueva matriz de transformación completa
 }
 
 fn create_viewport_matrix(width: f32, height: f32) -> Mat4 {
@@ -35,23 +35,20 @@ fn create_viewport_matrix(width: f32, height: f32) -> Mat4 {
     )
 }
 
-// Función para crear la matriz de proyección
 fn create_projection_matrix(window_width: f32, window_height: f32) -> Mat4 {
-    let fov = 45.0 * PI / 180.0;  // Campo de visión en radianes
-    let aspect_ratio = window_width / window_height;  // Relación de aspecto
-    let near = 0.1;  // Plano de recorte cercano
-    let far = 100.0;  // Plano de recorte lejano
+    let fov = 45.0 * PI / 180.0;
+    let aspect_ratio = window_width / window_height;
+    let near = 0.1;
+    let far = 100.0;
     perspective(fov, aspect_ratio, near, far)
 }
 
-// Función para crear la matriz de vista
 fn create_view_matrix(eye: Vec3, center: Vec3, up: Vec3) -> Mat4 {
     look_at(&eye, &center, &up)
 }
 
-// Función para crear la matriz de modelo (matriz identidad)
 fn create_model_matrix() -> Mat4 {
-    Mat4::identity()  // Devolver la matriz identidad
+    Mat4::identity()
 }
 
 // Render loop
@@ -114,39 +111,37 @@ fn main() {
 
     framebuffer.set_background_color(0x433878);
 
-    // Parámetros de modelo
-    let mut translation = Vec3::new(300.0, 550.0, 0.0); 
-    let mut rotation = Vec3::new(0.0, std::f32::consts::PI / 10.0, 0.0); 
-    let mut scale = 25.0f32;
-
-    // Parámetros de la cámara (eye, target, up)
-    let mut eye = Vec3::new(0.0, 0.0, 20.0);  // Posición de la cámara
-    let mut target = Vec3::new(0.0, 0.0, 0.0);  // A dónde está mirando
-    let up = Vec3::new(0.0, 1.0, 0.0);  // Vector "arriba" de la cámara
+    let mut eye = Vec3::new(0.0, 0.0, 25.0);
+    let mut target = Vec3::new(0.0, -10.0, 0.0);
+    let up = Vec3::new(0.0, 1.0, 0.0);
 
     let obj = Obj::load("src/assets/spaceship.obj").expect("Failed to load obj");
-    let vertex_arrays = obj.get_vertex_array(); 
+    let vertex_arrays = obj.get_vertex_array();
 
     while window.is_open() {
         if window.is_key_down(Key::Escape) {
             break;
         }
 
-        handle_input(&window, &mut translation, &mut rotation, &mut scale, &mut eye, &mut target);
+        handle_input(&window, &mut eye, &mut target);
 
         framebuffer.clear();
 
         // Calcular matrices
         let model_matrix = create_model_matrix();
-        let view_matrix = create_view_matrix(eye, target, up);  // Matriz de vista
-        let projection_matrix = create_projection_matrix(window_width as f32, window_height as f32);  // Matriz de proyección
-        let viewport_matrix = create_viewport_matrix(framebuffer_width as f32, framebuffer_height as f32);  // Matriz de viewport
+        let view_matrix = create_view_matrix(eye, target, up);
+        let projection_matrix = create_projection_matrix(window_width as f32, window_height as f32);
+        let viewport_matrix = create_viewport_matrix(framebuffer_width as f32, framebuffer_height as f32);
+
+        // Precálculo de la matriz de transformación completa
+        let transformation_matrix = viewport_matrix * projection_matrix * view_matrix * model_matrix;
 
         let uniforms = Uniforms {
             model_matrix,
             view_matrix,
             projection_matrix,
-            viewport_matrix,  // Añadir matriz de viewport a los uniformes
+            viewport_matrix,
+            transformation_matrix,
         };
 
         framebuffer.set_current_color(0xFFDDDD);
@@ -161,35 +156,33 @@ fn main() {
 }
 
 // Manejo de entrada para mover la cámara
-fn handle_input(window: &Window, _translation: &mut Vec3, _rotation: &mut Vec3, _scale: &mut f32, eye: &mut Vec3, target: &mut Vec3) {
+fn handle_input(window: &Window, eye: &mut Vec3, target: &mut Vec3) {
     let move_speed = 10.0;
-    let rotate_speed = PI / 100.0;
+    let rotate_speed = PI / 10.0;
 
-    // Movimiento de la cámara (eye)
     if window.is_key_down(Key::W) {
-        eye.z -= move_speed * 0.1;  // Mover la cámara hacia adelante
+        eye.z -= move_speed * 0.1;
     }
     if window.is_key_down(Key::S) {
-        eye.z += move_speed * 0.1;  // Mover la cámara hacia atrás
+        eye.z += move_speed * 0.1;
     }
     if window.is_key_down(Key::A) {
-        eye.x -= move_speed * 0.1;  // Mover la cámara hacia la izquierda
+        eye.x -= move_speed * 0.1;
     }
     if window.is_key_down(Key::D) {
-        eye.x += move_speed * 0.1;  // Mover la cámara hacia la derecha
+        eye.x += move_speed * 0.1;
     }
 
-    // Rotación de la cámara (cambiando el "target" para simular rotación)
     if window.is_key_down(Key::Left) {
-        target.x -= rotate_speed;  // Rotar la vista hacia la izquierda
+        target.x -= rotate_speed;
     }
     if window.is_key_down(Key::Right) {
-        target.x += rotate_speed;  // Rotar la vista hacia la derecha
+        target.x += rotate_speed;
     }
     if window.is_key_down(Key::Up) {
-        target.y += rotate_speed;  // Rotar la vista hacia arriba
+        target.y += rotate_speed;
     }
     if window.is_key_down(Key::Down) {
-        target.y -= rotate_speed;  // Rotar la vista hacia abajo
+        target.y -= rotate_speed;
     }
 }
