@@ -2,11 +2,10 @@ use std::fmt;
 
 #[derive(Debug, Clone, Copy)]
 pub struct Color {
-  r: u8,
-  g: u8,
-  b: u8,
+  pub r: u8,  // Ahora los campos son públicos
+  pub g: u8,  // Ahora los campos son públicos
+  pub b: u8,  // Ahora los campos son públicos
 }
-
 impl Color {
   // Constructor to initialize the color using r, g, b values as u8
   pub fn new(r: u8, g: u8, b: u8) -> Self {

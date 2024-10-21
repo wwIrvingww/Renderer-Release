@@ -19,6 +19,8 @@ use obj::Obj;
 use triangle::triangle;
 use shader::vertex_shader;
 use camera::Camera;  // Importa la estructura Camera
+use crate::shader::fragment_shader;
+
 
 pub struct Uniforms {
     model_matrix: Mat4,
@@ -77,12 +79,13 @@ fn render(framebuffer: &mut Framebuffer, uniforms: &Uniforms, vertex_array: &[Ve
     }
 
     // Fragment Processing Stage
+    // Fragment Processing Stage
     for fragment in fragments {
         let x = fragment.position.x as usize;
         let y = fragment.position.y as usize;
         if x < framebuffer.width && y < framebuffer.height {
-            let color = fragment.color.to_hex();
-            framebuffer.set_current_color(color);
+            let shaded_color = fragment_shader(&fragment); // Ahora aplica el fragment shader y obtén el color final
+            framebuffer.set_current_color(shaded_color.color.to_hex());
             framebuffer.point(x, y, fragment.depth);
         }
     }

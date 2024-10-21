@@ -51,7 +51,7 @@ pub fn triangle(v1: &Vertex, v2: &Vertex, v3: &Vertex) -> Vec<Fragment> {
         // Interpolación de profundidad (z-index)
         let depth = a.z * w1 + b.z * w2 + c.z * w3;
 
-        fragments.push(Fragment::new(x as f32, y as f32, lit_color, depth));
+        fragments.push(Fragment::new(x as f32, y as f32, lit_color, depth, normal, intensity)); //Acá agregue los valores normal e intensity
       }
     }
   }
