@@ -22,42 +22,38 @@ pub fn triangle(v1: &Vertex, v2: &Vertex, v3: &Vertex) -> Vec<Fragment> {
   let (min_x, min_y, max_x, max_y) = calculate_bounding_box(&a, &b, &c);
 
   let light_dir = Vec3::new(0.0, 0.0, -1.0);
-
   let triangle_area = edge_function(&a, &b, &c);
 
-  // Iterate over each pixel in the bounding box
   for y in min_y..=max_y {
     for x in min_x..=max_x {
       let point = Vec3::new(x as f32 + 0.5, y as f32 + 0.5, 0.0);
-
-      // Calculate barycentric coordinates
       let (w1, w2, w3) = barycentric_coordinates(&point, &a, &b, &c, triangle_area);
 
-      // Check if the point is inside the triangle
-      if w1 >= 0.0 && w1 <= 1.0 && 
-         w2 >= 0.0 && w2 <= 1.0 &&
-         w3 >= 0.0 && w3 <= 1.0 {
-        // Interpolación de normal
+      if w1 >= 0.0 && w1 <= 1.0 && w2 >= 0.0 && w2 <= 1.0 && w3 >= 0.0 && w3 <= 1.0 {
         let normal = v1.transformed_normal * w1 + v2.transformed_normal * w2 + v3.transformed_normal * w3;
         let normal = normal.normalize();
-
-        // Calcular la intensidad de la luz
         let intensity = dot(&normal, &light_dir).max(0.0);
 
-        // Crear color base y aplicar iluminación
-        let base_color = Color::new(100, 100, 100); // Gris medio
-        let lit_color = base_color * intensity;
+        // Interpolación de la posición del vértice
+        let interpolated_position = v1.transformed_position * w1 + v2.transformed_position * w2 + v3.transformed_position * w3;
 
-        // Interpolación de profundidad (z-index)
         let depth = a.z * w1 + b.z * w2 + c.z * w3;
 
-        fragments.push(Fragment::new(x as f32, y as f32, lit_color, depth, normal, intensity)); //Acá agregue los valores normal e intensity
+        fragments.push(Fragment::new(
+          interpolated_position.x, 
+          interpolated_position.y, 
+          Color::new(255, 255, 255), 
+          depth, 
+          normal, 
+          intensity
+        ));
       }
     }
   }
 
   fragments
 }
+
 
 fn calculate_bounding_box(v1: &Vec3, v2: &Vec3, v3: &Vec3) -> (i32, i32, i32, i32) {
     let min_x = v1.x.min(v2.x).min(v3.x).floor() as i32;

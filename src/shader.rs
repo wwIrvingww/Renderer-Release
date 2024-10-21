@@ -4,7 +4,6 @@ use crate::Uniforms;
 use crate::fragment::Fragment; // Importa la estructura Fragment
 use crate::color::Color;       // Importa la estructura Color
 
-
 pub fn vertex_shader(vertex: &Vertex, uniforms: &Uniforms) -> Vertex {
     // Aplicar la matriz de transformación completa (precomputada)
     let transformed = uniforms.transformation_matrix * Vec4::new(vertex.position.x, vertex.position.y, vertex.position.z, 1.0);
@@ -29,25 +28,45 @@ pub fn vertex_shader(vertex: &Vertex, uniforms: &Uniforms) -> Vertex {
     }
 }
 
-pub fn fragment_shader(fragment: &Fragment) -> Fragment {
-    // Aquí puedes modificar el color del fragmento, por ejemplo
-    // aplicando una simple reducción de brillo basada en la profundidad.
+// Shader de patrones: líneas horizontales
+pub fn pattern_fragment_shader(fragment: &Fragment) -> Fragment {
+    // Definir colores base para las líneas horizontales
+    let color1 = Color::new(91,153,194);
+    let color2 = Color::new(26, 72, 112);
 
-    let brightness_factor: f32 = 1.0 - (fragment.depth * 0.5); // Ejemplo de ajuste por profundidad
+    // Definir el patrón de líneas horizontales basado en la posición Y
+    let stripe_height = 10.0; // Tamaño de cada línea
+    let t = (fragment.position.y / stripe_height).fract(); // Fracción dentro de la línea
+
+    // Interpolar entre color1 y color2 usando la función lerp
+    let new_color = color1.lerp(&color2, t);
+
+    // Aplicar el shader de profundidad para ajustar brillo e intensidad
+    depth_based_fragment_shader(fragment, new_color)
+}
+
+// Función reutilizable para ajustar brillo basado en profundidad e intensidad
+pub fn depth_based_fragment_shader(fragment: &Fragment, base_color: Color) -> Fragment {
+    // Ajuste de brillo basado en la profundidad
+    let brightness_factor: f32 = 1.0 - (fragment.depth * 0.5);
     let brightness_factor = brightness_factor.clamp(0.0, 1.0);
 
-    let new_color = Color {
-        r: (fragment.color.r as f32 * brightness_factor) as u8,
-        g: (fragment.color.g as f32 * brightness_factor) as u8,
-        b: (fragment.color.b as f32 * brightness_factor) as u8,
+    // Aplicar el ajuste de brillo al color base
+    let mut adjusted_color = Color {
+        r: (base_color.r as f32 * brightness_factor) as u8,
+        g: (base_color.g as f32 * brightness_factor) as u8,
+        b: (base_color.b as f32 * brightness_factor) as u8,
     };
 
-    // Aquí es donde agregamos los campos 'normal' e 'intensity' faltantes.
+    // Multiplicar el color ajustado por la intensidad de la luz
+    adjusted_color = adjusted_color * fragment.intensity;
+
+    // Retornar el nuevo fragmento con el color modificado
     Fragment {
         position: fragment.position,
-        color: new_color,
+        color: adjusted_color,
         depth: fragment.depth,
-        normal: fragment.normal,  // Mantener el valor original
-        intensity: fragment.intensity,  // Mantener el valor original
+        normal: fragment.normal,
+        intensity: fragment.intensity,
     }
 }

@@ -19,7 +19,7 @@ use obj::Obj;
 use triangle::triangle;
 use shader::vertex_shader;
 use camera::Camera;  // Importa la estructura Camera
-use crate::shader::fragment_shader;
+use crate::shader::pattern_fragment_shader as fragment_shader;
 
 
 pub struct Uniforms {
