@@ -28,23 +28,6 @@ pub fn vertex_shader(vertex: &Vertex, uniforms: &Uniforms) -> Vertex {
     }
 }
 
-// Shader de patrones: líneas horizontales
-pub fn pattern_fragment_shader(fragment: &Fragment) -> Fragment {
-    // Definir colores base para las líneas horizontales
-    let color1 = Color::new(91,153,194);
-    let color2 = Color::new(26, 72, 112);
-
-    // Definir el patrón de líneas horizontales basado en la posición Y
-    let stripe_height = 10.0; // Tamaño de cada línea
-    let t = (fragment.position.y / stripe_height).fract(); // Fracción dentro de la línea
-
-    // Interpolar entre color1 y color2 usando la función lerp
-    let new_color = color1.lerp(&color2, t);
-
-    // Aplicar el shader de profundidad para ajustar brillo e intensidad
-    depth_based_fragment_shader(fragment, new_color)
-}
-
 // Función reutilizable para ajustar brillo basado en profundidad e intensidad
 pub fn depth_based_fragment_shader(fragment: &Fragment, base_color: Color) -> Fragment {
     // Ajuste de brillo basado en la profundidad
@@ -70,3 +53,36 @@ pub fn depth_based_fragment_shader(fragment: &Fragment, base_color: Color) -> Fr
         intensity: fragment.intensity,
     }
 }
+
+// Shader de patrones: líneas horizontales
+pub fn pattern_fragment_shader(fragment: &Fragment) -> Fragment {
+    // Definir colores base para las líneas horizontales
+    let color1 = Color::new(91,153,194);
+    let color2 = Color::new(26, 72, 112);
+
+    // Definir el patrón de líneas horizontales basado en la posición Y
+    let stripe_height = 10.0; // Tamaño de cada línea
+    let t = (fragment.position.y / stripe_height).fract(); // Fracción dentro de la línea
+
+    // Interpolar entre color1 y color2 usando la función lerp
+    let new_color = color1.lerp(&color2, t);
+
+    // Aplicar el shader de profundidad para ajustar brillo e intensidad
+    depth_based_fragment_shader(fragment, new_color)
+}
+
+
+
+
+pub fn time_based_fragment_shader(fragment: &Fragment, uniforms: &Uniforms) -> Option<Fragment> {
+    // Usar el tiempo para controlar la intensidad del desvanecimiento
+    let intensity_factor = (uniforms.time as f32 * 0.05).sin(); // Cambiar la velocidad del ciclo de intensidad
+    let dynamic_intensity = (intensity_factor + 1.0) / 2.0; // Convertir de -1 a 1 en 0 a 1 (rango entre 0 y 1)
+
+    // Aplicar la intensidad dinámica al color
+    let dynamic_color = fragment.color * dynamic_intensity; // Modificar el color en función de la intensidad
+
+    // Aplicar el shader de profundidad para ajustar el color con intensidad y profundidad
+    Some(depth_based_fragment_shader(fragment, dynamic_color))
+}
+
