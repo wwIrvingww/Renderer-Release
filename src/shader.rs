@@ -75,14 +75,23 @@ pub fn pattern_fragment_shader(fragment: &Fragment) -> Fragment {
 
 
 pub fn time_based_fragment_shader(fragment: &Fragment, uniforms: &Uniforms) -> Option<Fragment> {
-    // Usar el tiempo para controlar la intensidad del desvanecimiento
-    let intensity_factor = (uniforms.time as f32 * 0.05).sin(); // Cambiar la velocidad del ciclo de intensidad
-    let dynamic_intensity = (intensity_factor + 1.0) / 2.0; // Convertir de -1 a 1 en 0 a 1 (rango entre 0 y 1)
+    // Usar el tiempo para controlar el aumento progresivo de la intensidad del color rojo
+    let red_intensity = (uniforms.time as f32 * 0.05).sin();  // Cambia el rojo con el tiempo
+    let dynamic_red_intensity = (red_intensity + 1.0) / 2.0;  // Convertir de -1 a 1 en 0 a 1 (rango entre 0 y 1)
 
-    // Aplicar la intensidad dinámica al color
-    let dynamic_color = fragment.color * dynamic_intensity; // Modificar el color en función de la intensidad
+    // Mantener una mezcla entre el color original y el rojo creciente
+    let base_color = fragment.color;
+    let red_color = Color::new(255, 0, 0);  // Color rojo puro
 
-    // Aplicar el shader de profundidad para ajustar el color con intensidad y profundidad
-    Some(depth_based_fragment_shader(fragment, dynamic_color))
+    // Interpolar entre el color base y el rojo creciente
+    let mixed_color = base_color.lerp(&red_color, dynamic_red_intensity);
+
+    // Mantener algo de transparencia para conservar la figura
+    let transparency_factor = 0.5;  // Mantener la transparencia en un nivel constante
+    let transparent_color = mixed_color * transparency_factor;  // Aplicar la transparencia
+
+    // Aplicar el shader basado en la profundidad para ajustar sombras
+    Some(depth_based_fragment_shader(fragment, transparent_color))
 }
+
 
