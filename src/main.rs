@@ -17,12 +17,8 @@ use framebuffer::Framebuffer;
 use vertex::Vertex;
 use obj::Obj;
 use triangle::triangle;
-use shader::vertex_shader;
+use shader::{vertex_shader, exceptional_fragment_shader};  // Importa el nuevo shader
 use camera::Camera;  // Importa la estructura Camera
-use crate::shader::pattern_fragment_shader as fragment_shader;
-use crate::shader::time_based_fragment_shader;
-
-
 
 pub struct Uniforms {
     model_matrix: Mat4,
@@ -30,7 +26,7 @@ pub struct Uniforms {
     projection_matrix: Mat4,
     viewport_matrix: Mat4,
     transformation_matrix: Mat4,  // Nueva matriz de transformación completa
-    time: u32,
+    time: u32,  // Nueva línea para el tiempo
 }
 
 fn create_viewport_matrix(width: f32, height: f32) -> Mat4 {
@@ -86,14 +82,12 @@ fn render(framebuffer: &mut Framebuffer, uniforms: &Uniforms, vertex_array: &[Ve
         let x = fragment.position.x as usize;
         let y = fragment.position.y as usize;
         if x < framebuffer.width && y < framebuffer.height {
-            if let Some(shaded_fragment) = time_based_fragment_shader(&fragment, &uniforms) {
-                framebuffer.set_current_color(shaded_fragment.color.to_hex());
-                framebuffer.point(x, y, shaded_fragment.depth);
-            }
+            let shaded_color = exceptional_fragment_shader(&fragment, &uniforms);  // Aplicar el shader excepcional
+            framebuffer.set_current_color(shaded_color.color.to_hex());
+            framebuffer.point(x, y, fragment.depth);
         }
-    }    
+    }
 }
-
 
 fn main() {
     let window_width = 800;
@@ -118,10 +112,11 @@ fn main() {
 
     let mut camera = Camera::new(Vec3::new(0.0, 0.0, 25.0), Vec3::new(0.0, -10.0, 0.0), Vec3::new(0.0, 1.0, 0.0));
 
-    let mut time = 0; // Inicializar el contador de tiempo
-
     let obj = Obj::load("src/assets/spaceship.obj").expect("Failed to load obj");
     let vertex_arrays = obj.get_vertex_array();
+
+    // Contador de tiempo para el shader
+    let mut time_counter = 0;
 
     while window.is_open() {
         if window.is_key_down(Key::Escape) {
@@ -139,17 +134,18 @@ fn main() {
         let projection_matrix = create_projection_matrix(window_width as f32, window_height as f32);
         let viewport_matrix = create_viewport_matrix(framebuffer_width as f32, framebuffer_height as f32);
 
-        // Incrementar el tiempo en cada frame
-        time += 1;
+        let transformation_matrix = viewport_matrix * projection_matrix * view_matrix * model_matrix;
 
-        // Crear la estructura Uniforms con el tiempo actualizado
+        // Actualizar el contador de tiempo
+        time_counter += 1;
+
         let uniforms = Uniforms {
             model_matrix,
             view_matrix,
             projection_matrix,
             viewport_matrix,
-            transformation_matrix: viewport_matrix * projection_matrix * view_matrix * model_matrix,
-            time,
+            transformation_matrix,
+            time: time_counter,  // Pasar el contador de tiempo al Uniforms
         };
 
         framebuffer.set_current_color(0xFFDDDD);
@@ -162,7 +158,6 @@ fn main() {
         std::thread::sleep(frame_delay);
     }
 }
-
 
 // Manejo de entrada para mover la cámara
 fn handle_input(window: &Window, camera: &mut Camera) {
