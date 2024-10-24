@@ -3,6 +3,7 @@ use crate::vertex::Vertex;
 use crate::Uniforms;
 use crate::fragment::Fragment; // Importa la estructura Fragment
 use crate::color::Color;       // Importa la estructura Color
+use rand::Rng;
 
 pub fn vertex_shader(vertex: &Vertex, uniforms: &Uniforms) -> Vertex {
     // Aplicar la matriz de transformación completa (precomputada)
@@ -237,3 +238,42 @@ pub fn exceptional_fragment_shader(fragment: &Fragment, uniforms: &Uniforms) -> 
         intensity: fragment.intensity,
     }
 }
+
+
+// Función para generar el shader de ruido
+pub fn noise_shader(fragment: &Fragment, uniforms: &Uniforms) -> Fragment {
+    // Generar un generador de números aleatorios con una semilla
+    let mut rng = rand::thread_rng();
+
+    // Generar un valor de ruido aleatorio entre 0.0 y 1.0
+    let noise_value: f32 = rng.gen();
+
+    // Usar el ruido para modificar el color de los fragmentos
+    let noise_color = Color::new(
+        (fragment.color.r as f32 * noise_value) as u8,
+        (fragment.color.g as f32 * noise_value) as u8,
+        (fragment.color.b as f32 * noise_value) as u8,
+    );
+
+    // Aplicar interpolación entre el color original y el color con ruido
+    let final_color = fragment.color.lerp(&noise_color, 0.5);
+
+    // Retornar el fragmento con el color modificado por el ruido
+    Fragment {
+        position: fragment.position,
+        color: final_color,
+        depth: fragment.depth,
+        normal: fragment.normal,
+        intensity: fragment.intensity,
+    }
+}
+
+// Shader con profundidad y ruido
+pub fn depth_and_noise_shader(fragment: &Fragment, uniforms: &Uniforms) -> Fragment {
+    // Aplicar el noise shader para crear el efecto de ruido
+    let noisy_fragment = noise_shader(fragment, uniforms);
+
+    // Aplicar el shader basado en profundidad para ajustar brillo e intensidad
+    depth_based_fragment_shader(&noisy_fragment, noisy_fragment.color)
+}
+
