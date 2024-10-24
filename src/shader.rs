@@ -4,6 +4,7 @@ use crate::Uniforms;
 use crate::fragment::Fragment; // Importa la estructura Fragment
 use crate::color::Color;       // Importa la estructura Color
 use rand::Rng;
+use fastnoise_lite::NoiseType;
 
 pub fn vertex_shader(vertex: &Vertex, uniforms: &Uniforms) -> Vertex {
     // Aplicar la matriz de transformación completa (precomputada)
@@ -240,25 +241,44 @@ pub fn exceptional_fragment_shader(fragment: &Fragment, uniforms: &Uniforms) -> 
 }
 
 
-// Función para generar el shader de ruido
-pub fn noise_shader(fragment: &Fragment, uniforms: &Uniforms) -> Fragment {
-    // Generar un generador de números aleatorios con una semilla
+// Función para calcular un ruido simple 2D basado en coordenadas (x, y)
+pub fn noise_2d(x: f32, y: f32) -> f32 {
+    // Mezclamos las coordenadas para generar un valor pseudoaleatorio pero consistente
     let mut rng = rand::thread_rng();
+    let seed = (x * 12.9898 + y * 78.233).sin() * 43758.5453;
+    seed.fract()
+}
 
-    // Generar un valor de ruido aleatorio entre 0.0 y 1.0
-    let noise_value: f32 = rng.gen();
+// Función de interpolación para suavizar el ruido
+pub fn smooth_noise(x: f32, y: f32, offset_x: f32, offset_y: f32) -> f32 {
+    // Ajustamos las coordenadas con el offset
+    let new_x = x + offset_x;
+    let new_y = y + offset_y;
 
-    // Usar el ruido para modificar el color de los fragmentos
+    // Generamos el ruido para las coordenadas ajustadas
+    noise_2d(new_x, new_y)
+}
+
+// Shader que usa el ruido 2D con un offset
+pub fn noise_based_shader(fragment: &Fragment, uniforms: &Uniforms) -> Fragment {
+    // Definir un "offset" para manipular el patrón de ruido
+    let offset_x = uniforms.time as f32 * 0.01; // Usar el tiempo como offset en X
+    let offset_y = uniforms.time as f32 * 0.01; // Usar el tiempo como offset en Y
+
+    // Calcular el valor de ruido para las coordenadas del fragmento
+    let noise_value = smooth_noise(fragment.position.x, fragment.position.y, offset_x, offset_y);
+
+    // Generar un color basado en el ruido
     let noise_color = Color::new(
-        (fragment.color.r as f32 * noise_value) as u8,
-        (fragment.color.g as f32 * noise_value) as u8,
-        (fragment.color.b as f32 * noise_value) as u8,
+        (255.0 * noise_value) as u8,  // Aplicar el valor de ruido al componente rojo
+        (255.0 * (1.0 - noise_value)) as u8,  // Complementar el valor de ruido en verde
+        128,  // Color constante en azul
     );
 
-    // Aplicar interpolación entre el color original y el color con ruido
+    // Aplicar interpolación entre el color base y el color con ruido
     let final_color = fragment.color.lerp(&noise_color, 0.5);
 
-    // Retornar el fragmento con el color modificado por el ruido
+    // Retornar el fragmento con el color ajustado
     Fragment {
         position: fragment.position,
         color: final_color,
@@ -268,12 +288,18 @@ pub fn noise_shader(fragment: &Fragment, uniforms: &Uniforms) -> Fragment {
     }
 }
 
-// Shader con profundidad y ruido
-pub fn depth_and_noise_shader(fragment: &Fragment, uniforms: &Uniforms) -> Fragment {
-    // Aplicar el noise shader para crear el efecto de ruido
-    let noisy_fragment = noise_shader(fragment, uniforms);
+// Shader basado en ruido
+// Shader basado en ruido
+pub fn noise_based_fragment_shader(fragment: &Fragment, uniforms: &Uniforms) -> Fragment {
+    // Obtener la posición de los fragmentos en el espacio de coordenadas de ruido
+    let noise_value = uniforms.noise.get_noise_2d(fragment.position.x, fragment.position.y);
 
-    // Aplicar el shader basado en profundidad para ajustar brillo e intensidad
-    depth_based_fragment_shader(&noisy_fragment, noisy_fragment.color)
+    // Convertir el valor del ruido (que está entre -1 y 1) a un rango de color (0 a 255)
+    let normalized_noise = ((noise_value + 1.0) / 2.0 * 255.0).clamp(0.0, 255.0) as u8;
+
+    // Asignar colores en función del valor de ruido
+    let noise_color = Color::new(normalized_noise, normalized_noise, normalized_noise); // Escala de grises
+
+    // Aplicar el shader de profundidad para ajustar el brillo e intensidad
+    depth_based_fragment_shader(fragment, noise_color)
 }
-

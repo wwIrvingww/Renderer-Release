@@ -17,16 +17,24 @@ use framebuffer::Framebuffer;
 use vertex::Vertex;
 use obj::Obj;
 use triangle::triangle;
-use shader::{vertex_shader, exceptional_fragment_shader, noise_shader, depth_and_noise_shader};  // Importa el nuevo shader
+use shader::{vertex_shader, exceptional_fragment_shader, smooth_noise, noise_based_shader, noise_2d, noise_based_fragment_shader};  // Importa el nuevo shader
 use camera::Camera;  // Importa la estructura Camera
+use fastnoise_lite::{FastNoiseLite, NoiseType, FractalType};
 
-pub struct Uniforms {
+pub struct Uniforms<'a> {  // Agregar el lifetime 'a para la referencia
     model_matrix: Mat4,
     view_matrix: Mat4,
     projection_matrix: Mat4,
     viewport_matrix: Mat4,
     transformation_matrix: Mat4,  // Nueva matriz de transformación completa
     time: u32,  // Nueva línea para el tiempo
+    noise: &'a FastNoiseLite,  // Referencia a FastNoiseLite
+}
+
+fn create_noise() -> FastNoiseLite {
+    let mut noise = FastNoiseLite::with_seed(2312);
+    noise.set_noise_type(Some(NoiseType::OpenSimplex2));
+    noise
 }
 
 fn create_viewport_matrix(width: f32, height: f32) -> Mat4 {
@@ -82,12 +90,11 @@ fn render(framebuffer: &mut Framebuffer, uniforms: &Uniforms, vertex_array: &[Ve
         let x = fragment.position.x as usize;
         let y = fragment.position.y as usize;
         if x < framebuffer.width && y < framebuffer.height {
-            let shaded_color = depth_and_noise_shader(&fragment, &uniforms); // Aplicar el shader de ruido con profundidad
+            let shaded_color = noise_based_fragment_shader(&fragment, &uniforms); // Aplicar el nuevo shader
             framebuffer.set_current_color(shaded_color.color.to_hex());
             framebuffer.point(x, y, fragment.depth);
         }
     }
-
 }
 
 fn main() {
@@ -112,6 +119,9 @@ fn main() {
     framebuffer.set_background_color(0x433878);
 
     let mut camera = Camera::new(Vec3::new(0.0, 0.0, 25.0), Vec3::new(0.0, -10.0, 0.0), Vec3::new(0.0, 1.0, 0.0));
+
+    // Inicializar el ruido una vez
+    let noise = create_noise();
 
     let obj = Obj::load("src/assets/spaceship.obj").expect("Failed to load obj");
     let vertex_arrays = obj.get_vertex_array();
@@ -140,6 +150,7 @@ fn main() {
         // Actualizar el contador de tiempo
         time_counter += 1;
 
+        // Aquí pasamos la referencia `&noise` en lugar de moverlo
         let uniforms = Uniforms {
             model_matrix,
             view_matrix,
@@ -147,6 +158,7 @@ fn main() {
             viewport_matrix,
             transformation_matrix,
             time: time_counter,  // Pasar el contador de tiempo al Uniforms
+            noise: &noise,  // Pasar la referencia de noise
         };
 
         framebuffer.set_current_color(0xFFDDDD);
@@ -159,6 +171,7 @@ fn main() {
         std::thread::sleep(frame_delay);
     }
 }
+
 
 // Manejo de entrada para mover la cámara
 fn handle_input(window: &Window, camera: &mut Camera) {
