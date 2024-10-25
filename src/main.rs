@@ -17,7 +17,7 @@ use framebuffer::Framebuffer;
 use vertex::Vertex;
 use obj::Obj;
 use triangle::triangle;
-use shader::{vertex_shader, exceptional_fragment_shader, smooth_noise, noise_based_shader, noise_2d, noise_based_fragment_shader, moving_clouds_shader};  // Importa el nuevo shader
+use shader::{vertex_shader, exceptional_fragment_shader, smooth_noise, noise_based_shader, noise_2d, noise_based_fragment_shader, moving_clouds_shader, create_plant_noise, plant_texture_shader};  // Importa el nuevo shader
 use camera::Camera;  // Importa la estructura Camera
 use fastnoise_lite::{FastNoiseLite, NoiseType, FractalType};
 
@@ -121,8 +121,8 @@ fn main() {
 
     let mut camera = Camera::new(Vec3::new(0.0, 0.0, 25.0), Vec3::new(0.0, -10.0, 0.0), Vec3::new(0.0, 1.0, 0.0));
 
-    // Inicializar el ruido una vez
-    let noise = create_noise();
+    // Inicializar el ruido de planta
+    let noise = create_plant_noise();
 
     let obj = Obj::load("src/assets/spaceship.obj").expect("Failed to load obj");
     let vertex_arrays = obj.get_vertex_array();
@@ -142,7 +142,7 @@ fn main() {
 
         // Calcular matrices
         let model_matrix = create_model_matrix();
-        let view_matrix = camera.get_view_matrix();  // Usar la cámara para obtener la matriz de vista
+        let view_matrix = camera.get_view_matrix();
         let projection_matrix = create_projection_matrix(window_width as f32, window_height as f32);
         let viewport_matrix = create_viewport_matrix(framebuffer_width as f32, framebuffer_height as f32);
 
@@ -151,15 +151,15 @@ fn main() {
         // Actualizar el contador de tiempo
         time_counter += 1;
 
-        // Aquí pasamos la referencia `&noise` en lugar de moverlo
+        // Pasar noise y time al Uniforms
         let uniforms = Uniforms {
             model_matrix,
             view_matrix,
             projection_matrix,
             viewport_matrix,
             transformation_matrix,
-            time: time_counter,  // Pasar el contador de tiempo al Uniforms
-            noise: &noise,  // Pasar la referencia de noise
+            time: time_counter,
+            noise: &noise,
         };
 
         framebuffer.set_current_color(0xFFDDDD);
@@ -172,6 +172,7 @@ fn main() {
         std::thread::sleep(frame_delay);
     }
 }
+
 
 
 // Manejo de entrada para mover la cámara

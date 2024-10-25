@@ -4,8 +4,8 @@ use crate::Uniforms;
 use crate::fragment::Fragment; // Importa la estructura Fragment
 use crate::color::Color;       // Importa la estructura Color
 use rand::Rng;
-use fastnoise_lite::NoiseType;
 use std::f32::consts::PI;
+use fastnoise_lite::{FastNoiseLite, NoiseType, FractalType};
 
 
 pub fn vertex_shader(vertex: &Vertex, uniforms: &Uniforms) -> Vertex {
@@ -291,7 +291,6 @@ pub fn noise_based_shader(fragment: &Fragment, uniforms: &Uniforms) -> Fragment 
 }
 
 // Shader basado en ruido
-// Shader basado en ruido
 pub fn noise_based_fragment_shader(fragment: &Fragment, uniforms: &Uniforms) -> Fragment {
     // Obtener la posición de los fragmentos en el espacio de coordenadas de ruido
     let noise_value = uniforms.noise.get_noise_2d(fragment.position.x, fragment.position.y);
@@ -326,4 +325,31 @@ pub fn moving_clouds_shader(fragment: &Fragment, uniforms: &Uniforms) -> Fragmen
 
     // Aplicar `depth_based_fragment_shader` para ajustar el brillo y hacer el efecto de profundidad
     depth_based_fragment_shader(fragment, blended_color)
+}
+
+pub fn create_plant_noise() -> FastNoiseLite {
+    let mut noise = FastNoiseLite::with_seed(742); // Puedes probar diferentes seeds aquí
+    noise.set_noise_type(Some(NoiseType::Cellular));
+    noise.set_frequency(Some(0.05)); // Baja frecuencia para detalles grandes
+    noise.set_fractal_type(Some(FractalType::FBm)); // Fractal para agregar capas de detalle
+    noise.set_fractal_octaves(Some(3)); // Ajusta octavas para variar la complejidad
+    noise
+}
+
+pub fn plant_texture_shader(fragment: &Fragment, uniforms: &Uniforms) -> Fragment {
+    // Obtiene el valor de ruido basado en la posición de los fragmentos
+    let noise_value = uniforms.noise.get_noise_2d(fragment.position.x, fragment.position.y);
+
+    // Normaliza el valor de ruido de [-1, 1] a [0, 1]
+    let normalized_noise = (noise_value + 1.0) / 2.0;
+
+    // Definir colores de las plantas (verde oscuro y claro)
+    let color_dark_green = Color::new(34, 139, 34); // Verde oscuro
+    let color_light_green = Color::new(144, 238, 144); // Verde claro
+
+    // Interpolación entre colores de plantas
+    let plant_color = color_dark_green.lerp(&color_light_green, normalized_noise);
+
+    // Usar depth_based_fragment_shader para agregar profundidad
+    depth_based_fragment_shader(fragment, plant_color)
 }
