@@ -353,3 +353,44 @@ pub fn plant_texture_shader(fragment: &Fragment, uniforms: &Uniforms) -> Fragmen
     // Usar depth_based_fragment_shader para agregar profundidad
     depth_based_fragment_shader(fragment, plant_color)
 }
+
+pub fn create_cracked_earth_noise() -> FastNoiseLite {
+    let mut noise = FastNoiseLite::with_seed(1113); // Probar diferentes seeds para el mejor efecto
+    // Configurar el ruido celular
+    noise.set_noise_type(Some(NoiseType::Cellular)); // Usamos Cellular Noise para las grietas
+    noise.set_frequency(Some(0.1));  // Aumentar la frecuencia hace que las grietas sean más densas
+    noise.set_fractal_type(Some(FractalType::FBm));  // Fractal para añadir más detalle en pequeñas escalas
+    noise.set_fractal_octaves(Some(5));  // Añade más octavas para aumentar el nivel de detalle
+    noise.set_fractal_lacunarity(Some(2.0));  // Aumenta la lacunarity para más irregularidad
+    noise.set_fractal_gain(Some(0.5));  // Ajusta el gain para que las pequeñas grietas sean más notables
+    
+    noise
+}
+
+pub fn cracked_earth_shader(fragment: &Fragment, uniforms: &Uniforms) -> Fragment {
+    // Obtener el valor de ruido celular para la posición actual del fragmento
+    let noise_value = uniforms.noise.get_noise_2d(fragment.position.x, fragment.position.y);
+    
+    // Normalizar el valor de ruido a un rango entre 0 y 1
+    let normalized_noise = (noise_value + 1.0) / 2.0;
+
+    // Definir colores base para la tierra y las grietas
+    let ground_color = Color::new(181, 136, 99); // Color tierra
+    let crack_color = Color::new(120, 85, 58);  // Color para las grietas
+
+    // Umbrales para definir grietas y tierra
+    let crack_threshold = 0.3; // Cuanto más bajo, más grandes las grietas
+    let highlight_threshold = 0.6; // Resaltados más claros en los bordes de las grietas
+
+    // Asignar el color según el valor del ruido celular
+    let final_color = if normalized_noise < crack_threshold {
+        crack_color
+    } else if normalized_noise > highlight_threshold {
+        ground_color.lerp(&Color::new(220, 170, 130), 0.2)  // Un poco más claro en las áreas altas
+    } else {
+        ground_color
+    };
+
+    // Aplicar un shader basado en profundidad para ajustar el brillo y la intensidad de las grietas
+    depth_based_fragment_shader(fragment, final_color)
+}

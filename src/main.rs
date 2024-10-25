@@ -17,7 +17,7 @@ use framebuffer::Framebuffer;
 use vertex::Vertex;
 use obj::Obj;
 use triangle::triangle;
-use shader::{vertex_shader, exceptional_fragment_shader, smooth_noise, noise_based_shader, noise_2d, noise_based_fragment_shader, moving_clouds_shader, create_plant_noise, plant_texture_shader};  // Importa el nuevo shader
+use shader::{vertex_shader, cracked_earth_shader};  // Importa el shader de tierra quebrada
 use camera::Camera;  // Importa la estructura Camera
 use fastnoise_lite::{FastNoiseLite, NoiseType, FractalType};
 
@@ -31,9 +31,11 @@ pub struct Uniforms<'a> {  // Agregar el lifetime 'a para la referencia
     noise: &'a FastNoiseLite,  // Referencia a FastNoiseLite
 }
 
-fn create_noise() -> FastNoiseLite {
-    let mut noise = FastNoiseLite::with_seed(2312);
-    noise.set_noise_type(Some(NoiseType::OpenSimplex2));
+fn create_cracked_earth_noise() -> FastNoiseLite {
+    let mut noise = FastNoiseLite::with_seed(42);
+    noise.set_noise_type(Some(NoiseType::Cellular));
+    noise.set_fractal_type(Some(FractalType::FBm)); // Fractal para detalles
+    noise.set_frequency(Some(0.03)); // Ajustar frecuencia para simular "tierra quebrada"
     noise
 }
 
@@ -85,13 +87,13 @@ fn render(framebuffer: &mut Framebuffer, uniforms: &Uniforms, vertex_array: &[Ve
         fragments.extend(triangle(&tri[0], &tri[1], &tri[2]));
     }
 
-    // Fragment Processing Stage
+    // Fragment Processing Stage con el shader de tierra quebrada
     for fragment in fragments {
         let x = fragment.position.x as usize;
         let y = fragment.position.y as usize;
         if x < framebuffer.width && y < framebuffer.height {
-            // Aplicar `moving_clouds_shader` a cada fragmento
-            let shaded_color = moving_clouds_shader(&fragment, uniforms); 
+            // Aplicar el shader de tierra quebrada a cada fragmento
+            let shaded_color = cracked_earth_shader(&fragment, uniforms); 
             framebuffer.set_current_color(shaded_color.color.to_hex());
             framebuffer.point(x, y, fragment.depth);
         }
@@ -107,7 +109,7 @@ fn main() {
 
     let mut framebuffer = Framebuffer::new(framebuffer_width, framebuffer_height);
     let mut window = Window::new(
-        "INTERSTELLAR",
+        "Cracked Earth - Renderer",
         window_width,
         window_height,
         WindowOptions::default(),
@@ -121,8 +123,8 @@ fn main() {
 
     let mut camera = Camera::new(Vec3::new(0.0, 0.0, 25.0), Vec3::new(0.0, -10.0, 0.0), Vec3::new(0.0, 1.0, 0.0));
 
-    // Inicializar el ruido de planta
-    let noise = create_plant_noise();
+    // Inicializar el ruido para tierra quebrada
+    let noise = create_cracked_earth_noise();
 
     let obj = Obj::load("src/assets/spaceship.obj").expect("Failed to load obj");
     let vertex_arrays = obj.get_vertex_array();
@@ -142,7 +144,7 @@ fn main() {
 
         // Calcular matrices
         let model_matrix = create_model_matrix();
-        let view_matrix = camera.get_view_matrix();
+        let view_matrix = camera.get_view_matrix();  // Usar la cámara para obtener la matriz de vista
         let projection_matrix = create_projection_matrix(window_width as f32, window_height as f32);
         let viewport_matrix = create_viewport_matrix(framebuffer_width as f32, framebuffer_height as f32);
 
@@ -172,8 +174,6 @@ fn main() {
         std::thread::sleep(frame_delay);
     }
 }
-
-
 
 // Manejo de entrada para mover la cámara
 fn handle_input(window: &Window, camera: &mut Camera) {
