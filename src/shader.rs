@@ -5,6 +5,8 @@ use crate::fragment::Fragment; // Importa la estructura Fragment
 use crate::color::Color;       // Importa la estructura Color
 use rand::Rng;
 use fastnoise_lite::NoiseType;
+use std::f32::consts::PI;
+
 
 pub fn vertex_shader(vertex: &Vertex, uniforms: &Uniforms) -> Vertex {
     // Aplicar la matriz de transformación completa (precomputada)
@@ -302,4 +304,26 @@ pub fn noise_based_fragment_shader(fragment: &Fragment, uniforms: &Uniforms) -> 
 
     // Aplicar el shader de profundidad para ajustar el brillo e intensidad
     depth_based_fragment_shader(fragment, noise_color)
+}
+
+// Shader para crear nubes en movimiento sobre una superficie de planeta
+pub fn moving_clouds_shader(fragment: &Fragment, uniforms: &Uniforms) -> Fragment {
+    // Usar tiempo para animar las nubes en el eje x
+    let time_factor = uniforms.time as f32 * 1.1; // Ajusta la velocidad de movimiento de las nubes
+
+    // Obtener el valor de ruido para la posición actual del fragmento (x, y), desplazado por el tiempo para simular movimiento
+    let noise_value = uniforms.noise.get_noise_2d(fragment.position.x + time_factor, fragment.position.y);
+
+    // Convertir el ruido en un rango de 0 a 1 para usarlo como valor de opacidad
+    let cloud_opacity = (noise_value + 1.0) / 2.0;
+
+    // Definir el color del planeta como un azul profundo y el de las nubes como blanco
+    let planet_color = Color::new(0, 0, 139);   // Azul oscuro para la superficie del planeta
+    let cloud_color = Color::new(255, 255, 255); // Blanco para las nubes
+
+    // Interpolar entre el color del planeta y el color de las nubes usando el valor de opacidad de las nubes
+    let blended_color = planet_color.lerp(&cloud_color, cloud_opacity);
+
+    // Aplicar `depth_based_fragment_shader` para ajustar el brillo y hacer el efecto de profundidad
+    depth_based_fragment_shader(fragment, blended_color)
 }

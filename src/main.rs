@@ -17,7 +17,7 @@ use framebuffer::Framebuffer;
 use vertex::Vertex;
 use obj::Obj;
 use triangle::triangle;
-use shader::{vertex_shader, exceptional_fragment_shader, smooth_noise, noise_based_shader, noise_2d, noise_based_fragment_shader};  // Importa el nuevo shader
+use shader::{vertex_shader, exceptional_fragment_shader, smooth_noise, noise_based_shader, noise_2d, noise_based_fragment_shader, moving_clouds_shader};  // Importa el nuevo shader
 use camera::Camera;  // Importa la estructura Camera
 use fastnoise_lite::{FastNoiseLite, NoiseType, FractalType};
 
@@ -90,7 +90,8 @@ fn render(framebuffer: &mut Framebuffer, uniforms: &Uniforms, vertex_array: &[Ve
         let x = fragment.position.x as usize;
         let y = fragment.position.y as usize;
         if x < framebuffer.width && y < framebuffer.height {
-            let shaded_color = noise_based_fragment_shader(&fragment, &uniforms); // Aplicar el nuevo shader
+            // Aplicar `moving_clouds_shader` a cada fragmento
+            let shaded_color = moving_clouds_shader(&fragment, uniforms); 
             framebuffer.set_current_color(shaded_color.color.to_hex());
             framebuffer.point(x, y, fragment.depth);
         }
