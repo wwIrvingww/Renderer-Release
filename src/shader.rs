@@ -1,4 +1,4 @@
-use nalgebra_glm::{Vec3, Vec4};
+use nalgebra_glm::{Vec3, Vec4, Vec2, vec2};
 use crate::vertex::Vertex;
 use crate::Uniforms;
 use crate::fragment::Fragment; // Importa la estructura Fragment
@@ -11,7 +11,6 @@ use fastnoise_lite::{FastNoiseLite, NoiseType, FractalType};
 pub fn vertex_shader(vertex: &Vertex, uniforms: &Uniforms) -> Vertex {
     // Aplicar la matriz de transformación completa (precomputada)
     let transformed = uniforms.transformation_matrix * Vec4::new(vertex.position.x, vertex.position.y, vertex.position.z, 1.0);
-
     // Realizar la división por w para obtener las coordenadas NDC
     let w = transformed.w;
     let ndc_position = Vec4::new(
@@ -21,14 +20,27 @@ pub fn vertex_shader(vertex: &Vertex, uniforms: &Uniforms) -> Vertex {
         1.0
     );
 
+    let transformed_position = uniforms.viewport_matrix * ndc_position;
+
     // Crear un nuevo vértice con los atributos transformados
     Vertex {
         position: vertex.position,
         normal: vertex.normal,
         tex_coords: vertex.tex_coords,
         color: vertex.color,
-        transformed_position: Vec3::new(ndc_position.x, ndc_position.y, ndc_position.z),
-        transformed_normal: vertex.transformed_normal,
+        transformed_position: Vec3::new(transformed_position.x, transformed_position.y, transformed_position.z),
+        transformed_normal: vertex.normal, //AQUI VOY A PONER LA DE LA INVERSA 
+    }
+}
+
+pub fn fragment_shader(fragment: &Fragment) -> Fragment {
+    Fragment {
+        position: fragment.position,
+        color: Color::new(255, 0, 0),
+        depth: fragment.depth,
+        normal: fragment.normal,
+        intensity: fragment.intensity,
+        vertex_position: fragment.vertex_position
     }
 }
 
@@ -55,6 +67,7 @@ pub fn depth_based_fragment_shader(fragment: &Fragment, base_color: Color) -> Fr
         depth: fragment.depth,
         normal: fragment.normal,
         intensity: fragment.intensity,
+        vertex_position: fragment.vertex_position
     }
 }
 
@@ -66,7 +79,7 @@ pub fn pattern_fragment_shader(fragment: &Fragment) -> Fragment {
 
     // Definir el patrón de líneas horizontales basado en la posición Y
     let stripe_height = 10.0; // Tamaño de cada línea
-    let t = (fragment.position.y / stripe_height).fract(); // Fracción dentro de la línea
+    let t = ((fragment.vertex_position.y * 100.0).abs()/ stripe_height).fract(); // Fracción dentro de la línea
 
     // Interpolar entre color1 y color2 usando la función lerp
     let new_color = color1.lerp(&color2, t);
@@ -115,6 +128,7 @@ pub fn simple_pattern_shader(fragment: &Fragment) -> Fragment {
         depth: fragment.depth,
         normal: fragment.normal,
         intensity: fragment.intensity,
+        vertex_position: fragment.vertex_position
     }
 }
 
@@ -138,6 +152,7 @@ pub fn moving_pattern_shader(fragment: &Fragment, uniforms: &Uniforms) -> Fragme
         depth: fragment.depth,
         normal: fragment.normal,
         intensity: fragment.intensity,
+        vertex_position: fragment.vertex_position
     }
 }
 
@@ -239,6 +254,7 @@ pub fn exceptional_fragment_shader(fragment: &Fragment, uniforms: &Uniforms) -> 
         depth: fragment.depth,
         normal: fragment.normal,
         intensity: fragment.intensity,
+        vertex_position: fragment.vertex_position
     }
 }
 
@@ -287,6 +303,8 @@ pub fn noise_based_shader(fragment: &Fragment, uniforms: &Uniforms) -> Fragment 
         depth: fragment.depth,
         normal: fragment.normal,
         intensity: fragment.intensity,
+        vertex_position: fragment.vertex_position
+
     }
 }
 
@@ -355,42 +373,40 @@ pub fn plant_texture_shader(fragment: &Fragment, uniforms: &Uniforms) -> Fragmen
 }
 
 pub fn create_cracked_earth_noise() -> FastNoiseLite {
-    let mut noise = FastNoiseLite::with_seed(1113); // Probar diferentes seeds para el mejor efecto
+    let mut noise = FastNoiseLite::with_seed(2312); // Probar diferentes seeds para el mejor efecto
     // Configurar el ruido celular
     noise.set_noise_type(Some(NoiseType::Cellular)); // Usamos Cellular Noise para las grietas
-    noise.set_frequency(Some(0.1));  // Aumentar la frecuencia hace que las grietas sean más densas
+    noise.set_frequency(Some(10.1));  // Aumentar la frecuencia hace que las grietas sean más densas
     noise.set_fractal_type(Some(FractalType::FBm));  // Fractal para añadir más detalle en pequeñas escalas
-    noise.set_fractal_octaves(Some(5));  // Añade más octavas para aumentar el nivel de detalle
-    noise.set_fractal_lacunarity(Some(2.0));  // Aumenta la lacunarity para más irregularidad
-    noise.set_fractal_gain(Some(0.5));  // Ajusta el gain para que las pequeñas grietas sean más notables
+    noise.set_fractal_octaves(Some(10));  // Añade más octavas para aumentar el nivel de detalle
+    noise.set_fractal_lacunarity(Some(10.0));  // Aumenta la lacunarity para más irregularidad
+    noise.set_fractal_gain(Some(3.5));  // Ajusta el gain para que las pequeñas grietas sean más notables
     
     noise
 }
 
 pub fn cracked_earth_shader(fragment: &Fragment, uniforms: &Uniforms) -> Fragment {
-    // Obtener el valor de ruido celular para la posición actual del fragmento
-    let noise_value = uniforms.noise.get_noise_2d(fragment.position.x, fragment.position.y);
-    
-    // Normalizar el valor de ruido a un rango entre 0 y 1
-    let normalized_noise = (noise_value + 1.0) / 2.0;
+    // Escala de UV para obtener mayor densidad en las fracturas
+    let scale_factor = 1.0; 
+    let uv = nalgebra_glm::vec2(fragment.position.x, fragment.position.y) * scale_factor;
 
-    // Definir colores base para la tierra y las grietas
-    let ground_color = Color::new(181, 136, 99); // Color tierra
-    let crack_color = Color::new(120, 85, 58);  // Color para las grietas
+    // Obtener valor de ruido celular para simular grietas
+    let noise_value = uniforms.noise.get_noise_2d(uv.x, uv.y);
+    let normalized_noise = (noise_value + 1.0) / 2.0; // Normalizar ruido a 0-1
 
-    // Umbrales para definir grietas y tierra
-    let crack_threshold = 0.3; // Cuanto más bajo, más grandes las grietas
-    let highlight_threshold = 0.6; // Resaltados más claros en los bordes de las grietas
+    // Definir colores base para tierra y grietas
+    let base_color = Color::new(150, 111, 80); // Tierra
+    let crack_color = Color::new(100, 80, 60); // Grietas profundas
 
-    // Asignar el color según el valor del ruido celular
-    let final_color = if normalized_noise < crack_threshold {
-        crack_color
-    } else if normalized_noise > highlight_threshold {
-        ground_color.lerp(&Color::new(220, 170, 130), 0.2)  // Un poco más claro en las áreas altas
+    // Aplicar umbrales para acentuar fracturas
+    let final_color = if normalized_noise < 0.4 {
+        crack_color // Grieta
+    } else if normalized_noise > 0.7 {
+        base_color.lerp(&Color::new(200, 160, 130), 0.3) // Suavizado en bordes
     } else {
-        ground_color
+        base_color // Tierra
     };
 
-    // Aplicar un shader basado en profundidad para ajustar el brillo y la intensidad de las grietas
+    // Aplicar un ajuste de profundidad para mayor contraste
     depth_based_fragment_shader(fragment, final_color)
 }

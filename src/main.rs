@@ -17,7 +17,7 @@ use framebuffer::Framebuffer;
 use vertex::Vertex;
 use obj::Obj;
 use triangle::triangle;
-use shader::{vertex_shader, cracked_earth_shader};  // Importa el shader de tierra quebrada
+use shader::{vertex_shader, cracked_earth_shader, pattern_fragment_shader};  // Importa el shader de tierra quebrada
 use camera::Camera;  // Importa la estructura Camera
 use fastnoise_lite::{FastNoiseLite, NoiseType, FractalType};
 
@@ -49,7 +49,7 @@ fn create_viewport_matrix(width: f32, height: f32) -> Mat4 {
 }
 
 fn create_projection_matrix(window_width: f32, window_height: f32) -> Mat4 {
-    let fov = 45.0 * PI / 180.0;
+    let fov = PI / 4.0;
     let aspect_ratio = window_width / window_height;
     let near = 0.1;
     let far = 100.0;
@@ -93,7 +93,7 @@ fn render(framebuffer: &mut Framebuffer, uniforms: &Uniforms, vertex_array: &[Ve
         let y = fragment.position.y as usize;
         if x < framebuffer.width && y < framebuffer.height {
             // Aplicar el shader de tierra quebrada a cada fragmento
-            let shaded_color = cracked_earth_shader(&fragment, uniforms); 
+            let shaded_color = pattern_fragment_shader(&fragment);
             framebuffer.set_current_color(shaded_color.color.to_hex());
             framebuffer.point(x, y, fragment.depth);
         }
@@ -101,10 +101,10 @@ fn render(framebuffer: &mut Framebuffer, uniforms: &Uniforms, vertex_array: &[Ve
 }
 
 fn main() {
-    let window_width = 800;
-    let window_height = 600;
-    let framebuffer_width = 800;
-    let framebuffer_height = 600;
+    let window_width = 1000;
+    let window_height = 1000;
+    let framebuffer_width = 1000;
+    let framebuffer_height = 1000;
     let frame_delay = Duration::from_millis(10);
 
     let mut framebuffer = Framebuffer::new(framebuffer_width, framebuffer_height);
@@ -116,17 +116,14 @@ fn main() {
     )
     .unwrap();
 
-    window.set_position(500, 500);
-    window.update();
-
     framebuffer.set_background_color(0x433878);
 
-    let mut camera = Camera::new(Vec3::new(0.0, 0.0, 25.0), Vec3::new(0.0, -10.0, 0.0), Vec3::new(0.0, 1.0, 0.0));
+    let mut camera = Camera::new(Vec3::new(0.0, 0.0, 5.0), Vec3::new(0.0, 0.0, 0.0), Vec3::new(0.0, 1.0, 0.0));
 
     // Inicializar el ruido para tierra quebrada
     let noise = create_cracked_earth_noise();
 
-    let obj = Obj::load("src/assets/spaceship.obj").expect("Failed to load obj");
+    let obj = Obj::load("src/assets/sphere.obj").expect("Failed to load obj");
     let vertex_arrays = obj.get_vertex_array();
 
     // Contador de tiempo para el shader
@@ -148,8 +145,9 @@ fn main() {
         let projection_matrix = create_projection_matrix(window_width as f32, window_height as f32);
         let viewport_matrix = create_viewport_matrix(framebuffer_width as f32, framebuffer_height as f32);
 
-        let transformation_matrix = viewport_matrix * projection_matrix * view_matrix * model_matrix;
-
+        let transformation_matrix = projection_matrix * view_matrix * model_matrix;
+        //CALCULAR LA INVERSION DE LA MATRIZ DE MODELO, PERO DE TAMAÑO 3X3. MULTIPLICAR LA NORMAL POR LA TRANSFORMADA
+        //AGREGAR AL UNIFORM ESE MATRIZ Y LUEGO EN EL SHADER LA USO PARA CALCULAR LA TRANSFORM MATRIX
         // Actualizar el contador de tiempo
         time_counter += 1;
 

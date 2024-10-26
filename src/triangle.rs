@@ -1,4 +1,4 @@
-use nalgebra_glm::{Vec3, dot};
+use nalgebra_glm::{Vec3, dot, Vec2};
 use crate::fragment::Fragment;
 use crate::vertex::Vertex;
 use crate::line::line;
@@ -21,8 +21,10 @@ pub fn triangle(v1: &Vertex, v2: &Vertex, v3: &Vertex) -> Vec<Fragment> {
 
   let (min_x, min_y, max_x, max_y) = calculate_bounding_box(&a, &b, &c);
 
-  let light_dir = Vec3::new(0.0, 0.0, -1.0);
+  let light_dir = Vec3::new(0.0, 0.0, 1.0);
   let triangle_area = edge_function(&a, &b, &c);
+
+  //f (min_y < screen width ...
 
   for y in min_y..=max_y {
     for x in min_x..=max_x {
@@ -35,17 +37,18 @@ pub fn triangle(v1: &Vertex, v2: &Vertex, v3: &Vertex) -> Vec<Fragment> {
         let intensity = dot(&normal, &light_dir).max(0.0);
 
         // Interpolación de la posición del vértice
-        let interpolated_position = v1.transformed_position * w1 + v2.transformed_position * w2 + v3.transformed_position * w3;
+        let vertex_position = v1.position * w1 + v2.position * w2 + v3.position * w3;
 
         let depth = a.z * w1 + b.z * w2 + c.z * w3;
 
         fragments.push(Fragment::new(
-          interpolated_position.x, 
-          interpolated_position.y, 
+          x as f32, 
+          y as f32, 
           Color::new(255, 255, 255), 
           depth, 
           normal, 
-          intensity
+          intensity,
+          Vec2::new(vertex_position.x, vertex_position.y),
         ));
       }
     }
