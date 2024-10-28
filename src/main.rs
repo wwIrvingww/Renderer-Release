@@ -89,18 +89,19 @@ fn render(framebuffer: &mut Framebuffer, uniforms: &Uniforms, vertex_array: &[Ve
         fragments.extend(triangle(&tri[0], &tri[1], &tri[2]));
     }
 
-    // Fragment Processing Stage con el shader de tierra quebrada
+    // Fragment Processing Stage con el shader de patrón
     for fragment in fragments {
         let x = fragment.position.x as usize;
         let y = fragment.position.y as usize;
         if x < framebuffer.width && y < framebuffer.height {
-            // Aplicar el shader de tierra quebrada a cada fragmento
+            // Aplicar `pattern_fragment_shader` y obtener un `Color`
             let shaded_color = pattern_fragment_shader(&fragment);
-            framebuffer.set_current_color(shaded_color.color.to_hex());
+            framebuffer.set_current_color(shaded_color.to_hex());
             framebuffer.point(x, y, fragment.depth);
         }
     }
 }
+
 
 fn main() {
     let window_width = 1000;

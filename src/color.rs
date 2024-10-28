@@ -1,4 +1,5 @@
 use std::fmt;
+use std::ops::{Add, Mul};
 
 #[derive(Debug, Clone, Copy)]
 pub struct Color {
@@ -123,8 +124,6 @@ impl Color {
 }
 
 // Implement addition for Color
-use std::ops::Add;
-
 impl Add for Color {
     type Output = Color;
 
@@ -137,15 +136,7 @@ impl Add for Color {
     }
 }
 
-impl PartialEq for Color {
-    fn eq(&self, other: &Self) -> bool {
-        self.r == other.r && self.g == other.g && self.b == other.b
-    }
-}
-
 // Implement multiplication by a constant for Color
-use std::ops::Mul;
-
 impl Mul<f32> for Color {
     type Output = Color;
 
@@ -155,6 +146,12 @@ impl Mul<f32> for Color {
             g: (self.g as f32 * scalar).clamp(0.0, 255.0) as u8,
             b: (self.b as f32 * scalar).clamp(0.0, 255.0) as u8,
         }
+    }
+}
+
+impl PartialEq for Color {
+    fn eq(&self, other: &Self) -> bool {
+        self.r == other.r && self.g == other.g && self.b == other.b
     }
 }
 
