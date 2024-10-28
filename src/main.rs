@@ -1,4 +1,4 @@
-use nalgebra_glm::{look_at, perspective, Vec3, Mat4};  // Importa la función perspective
+use nalgebra_glm::{look_at, perspective, Vec3, Mat4, Mat3};  // Importa la función perspective
 use minifb::{Key, Window, WindowOptions};
 use std::time::Duration;
 use std::f32::consts::PI;
@@ -11,24 +11,26 @@ mod obj;
 mod color;
 mod fragment;
 mod shader;
-mod camera;  // Asegúrate de importar tu módulo de cámara
+mod camera;
 
 use framebuffer::Framebuffer;
 use vertex::Vertex;
 use obj::Obj;
 use triangle::triangle;
-use shader::{vertex_shader, cracked_earth_shader, pattern_fragment_shader};  // Importa el shader de tierra quebrada
-use camera::Camera;  // Importa la estructura Camera
+use shader::{vertex_shader, cracked_earth_shader, pattern_fragment_shader};  
+use camera::Camera;  
 use fastnoise_lite::{FastNoiseLite, NoiseType, FractalType};
 
-pub struct Uniforms<'a> {  // Agregar el lifetime 'a para la referencia
+// Corrige la estructura `Uniforms` especificando los tipos y valores de manera adecuada
+pub struct Uniforms<'a> {
     model_matrix: Mat4,
     view_matrix: Mat4,
     projection_matrix: Mat4,
     viewport_matrix: Mat4,
-    transformation_matrix: Mat4,  // Nueva matriz de transformación completa
-    time: u32,  // Nueva línea para el tiempo
-    noise: &'a FastNoiseLite,  // Referencia a FastNoiseLite
+    transformation_matrix: Mat4,
+    normal_matrix: Mat3,
+    time: u32,
+    noise: &'a FastNoiseLite,
 }
 
 fn create_cracked_earth_noise() -> FastNoiseLite {
@@ -141,23 +143,27 @@ fn main() {
 
         // Calcular matrices
         let model_matrix = create_model_matrix();
-        let view_matrix = camera.get_view_matrix();  // Usar la cámara para obtener la matriz de vista
+        let view_matrix = camera.get_view_matrix();
         let projection_matrix = create_projection_matrix(window_width as f32, window_height as f32);
         let viewport_matrix = create_viewport_matrix(framebuffer_width as f32, framebuffer_height as f32);
 
+        // La matriz de transformación principal
         let transformation_matrix = projection_matrix * view_matrix * model_matrix;
-        //CALCULAR LA INVERSION DE LA MATRIZ DE MODELO, PERO DE TAMAÑO 3X3. MULTIPLICAR LA NORMAL POR LA TRANSFORMADA
-        //AGREGAR AL UNIFORM ESE MATRIZ Y LUEGO EN EL SHADER LA USO PARA CALCULAR LA TRANSFORM MATRIX
+
+        // Calcular la matriz de transformación de normales:
+        let normal_matrix = model_matrix.fixed_resize::<3, 3>(0.0).try_inverse().unwrap().transpose();
+
         // Actualizar el contador de tiempo
         time_counter += 1;
 
-        // Pasar noise y time al Uniforms
+        // Pasar noise, time y normal_matrix al Uniforms
         let uniforms = Uniforms {
             model_matrix,
             view_matrix,
             projection_matrix,
             viewport_matrix,
             transformation_matrix,
+            normal_matrix,
             time: time_counter,
             noise: &noise,
         };
