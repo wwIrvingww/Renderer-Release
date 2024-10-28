@@ -1,4 +1,4 @@
-use nalgebra_glm::{look_at, perspective, Vec3, Mat4, Mat3};  // Importa la función perspective
+use nalgebra_glm::{look_at, perspective, Vec3, Mat4, Mat3};
 use minifb::{Key, Window, WindowOptions};
 use std::time::Duration;
 use std::f32::consts::PI;
@@ -12,16 +12,17 @@ mod color;
 mod fragment;
 mod shader;
 mod camera;
+mod planets_shader;  // Importamos el nuevo módulo de planetas
 
 use framebuffer::Framebuffer;
 use vertex::Vertex;
 use obj::Obj;
 use triangle::triangle;
-use shader::{vertex_shader, cracked_earth_shader, pattern_fragment_shader};  
-use camera::Camera;  
+use shader::{vertex_shader, pattern_fragment_shader};  
+use planets_shader::{rocky_planet_shader, gaseous_planet_shader};  // Importamos los shaders de planetas
+use camera::Camera;
 use fastnoise_lite::{FastNoiseLite, NoiseType, FractalType};
 
-// Corrige la estructura `Uniforms` especificando los tipos y valores de manera adecuada
 pub struct Uniforms<'a> {
     model_matrix: Mat4,
     view_matrix: Mat4,
@@ -33,11 +34,17 @@ pub struct Uniforms<'a> {
     noise: &'a FastNoiseLite,
 }
 
+// Inicializamos el shader predeterminado como el primer shader (rocoso)
+enum PlanetShader {
+    Rocky,
+    Gaseous,
+}
+
 fn create_cracked_earth_noise() -> FastNoiseLite {
     let mut noise = FastNoiseLite::with_seed(42);
     noise.set_noise_type(Some(NoiseType::Cellular));
-    noise.set_fractal_type(Some(FractalType::FBm)); // Fractal para detalles
-    noise.set_frequency(Some(0.03)); // Ajustar frecuencia para simular "tierra quebrada"
+    noise.set_fractal_type(Some(FractalType::FBm));
+    noise.set_frequency(Some(0.03));
     noise
 }
 
@@ -62,16 +69,14 @@ fn create_model_matrix() -> Mat4 {
     Mat4::identity()
 }
 
-// Render loop
-fn render(framebuffer: &mut Framebuffer, uniforms: &Uniforms, vertex_array: &[Vertex]) {
-    // Vertex Shader Stage
+// Cambia la firma de `render` para aceptar una referencia a `PlanetShader`
+fn render(framebuffer: &mut Framebuffer, uniforms: &Uniforms, vertex_array: &[Vertex], planet_shader: &PlanetShader) {
     let mut transformed_vertices = Vec::with_capacity(vertex_array.len());
     for vertex in vertex_array {
         let transformed = vertex_shader(vertex, uniforms);
         transformed_vertices.push(transformed);
     }
 
-    // Primitive Assembly Stage
     let mut triangles = Vec::new();
     for i in (0..transformed_vertices.len()).step_by(3) {
         if i + 2 < transformed_vertices.len() {
@@ -83,25 +88,25 @@ fn render(framebuffer: &mut Framebuffer, uniforms: &Uniforms, vertex_array: &[Ve
         }
     }
 
-    // Rasterization Stage
     let mut fragments = Vec::new();
     for tri in &triangles {
         fragments.extend(triangle(&tri[0], &tri[1], &tri[2]));
     }
 
-    // Fragment Processing Stage con el shader de patrón
     for fragment in fragments {
         let x = fragment.position.x as usize;
         let y = fragment.position.y as usize;
         if x < framebuffer.width && y < framebuffer.height {
-            // Aplicar `pattern_fragment_shader` y obtener un `Color`
-            let shaded_color = pattern_fragment_shader(&fragment);
+            // Aplicar el shader de planeta seleccionado
+            let shaded_color = match planet_shader {
+                PlanetShader::Rocky => rocky_planet_shader(&fragment, uniforms),
+                PlanetShader::Gaseous => gaseous_planet_shader(&fragment, uniforms),
+            };
             framebuffer.set_current_color(shaded_color.to_hex());
             framebuffer.point(x, y, fragment.depth);
         }
     }
 }
-
 
 fn main() {
     let window_width = 1000;
@@ -112,7 +117,7 @@ fn main() {
 
     let mut framebuffer = Framebuffer::new(framebuffer_width, framebuffer_height);
     let mut window = Window::new(
-        "Cracked Earth - Renderer",
+        "Planet Renderer",
         window_width,
         window_height,
         WindowOptions::default(),
@@ -122,42 +127,34 @@ fn main() {
     framebuffer.set_background_color(0x433878);
 
     let mut camera = Camera::new(Vec3::new(0.0, 0.0, 5.0), Vec3::new(0.0, 0.0, 0.0), Vec3::new(0.0, 1.0, 0.0));
-
-    // Inicializar el ruido para tierra quebrada
     let noise = create_cracked_earth_noise();
 
     let obj = Obj::load("src/assets/sphere.obj").expect("Failed to load obj");
     let vertex_arrays = obj.get_vertex_array();
 
-    // Contador de tiempo para el shader
     let mut time_counter = 0;
+    let mut current_planet_shader = PlanetShader::Rocky;  // Shader por defecto
 
     while window.is_open() {
         if window.is_key_down(Key::Escape) {
             break;
         }
 
-        // Manejar la entrada de la cámara para orbit y zoom
         handle_input(&window, &mut camera);
+        handle_shader_selection(&window, &mut current_planet_shader);
 
         framebuffer.clear();
 
-        // Calcular matrices
         let model_matrix = create_model_matrix();
         let view_matrix = camera.get_view_matrix();
         let projection_matrix = create_projection_matrix(window_width as f32, window_height as f32);
         let viewport_matrix = create_viewport_matrix(framebuffer_width as f32, framebuffer_height as f32);
 
-        // La matriz de transformación principal
         let transformation_matrix = projection_matrix * view_matrix * model_matrix;
-
-        // Calcular la matriz de transformación de normales:
         let normal_matrix = model_matrix.fixed_resize::<3, 3>(0.0).try_inverse().unwrap().transpose();
 
-        // Actualizar el contador de tiempo
         time_counter += 1;
 
-        // Pasar noise, time y normal_matrix al Uniforms
         let uniforms = Uniforms {
             model_matrix,
             view_matrix,
@@ -170,7 +167,7 @@ fn main() {
         };
 
         framebuffer.set_current_color(0xFFDDDD);
-        render(&mut framebuffer, &uniforms, &vertex_arrays);
+        render(&mut framebuffer, &uniforms, &vertex_arrays, &current_planet_shader);  // Pasar `planet_shader` como referencia
 
         window
             .update_with_buffer(&framebuffer.buffer, framebuffer_width, framebuffer_height)
@@ -180,30 +177,40 @@ fn main() {
     }
 }
 
-// Manejo de entrada para mover la cámara
-fn handle_input(window: &Window, camera: &mut Camera) {
-    let orbit_speed = PI / 50.0;  // Ajustar la velocidad de la órbita
-    let zoom_speed = 0.5;  // Ajustar la velocidad del zoom
-
-    // Orbitar con las teclas de flecha
-    if window.is_key_down(Key::Left) {
-        camera.orbit(orbit_speed, 0.0);  // Rotar alrededor del eje Y
+// Función para manejar la selección de shaders de planeta
+fn handle_shader_selection(window: &Window, current_shader: &mut PlanetShader) {
+    if window.is_key_down(Key::Key1) {
+        *current_shader = PlanetShader::Rocky;
     }
-    if window.is_key_down(Key::Right) {
-        camera.orbit(-orbit_speed, 0.0);  // Rotar alrededor del eje Y en la otra dirección
-    }
-    if window.is_key_down(Key::Up) {
-        camera.orbit(0.0, orbit_speed);  // Rotar alrededor del eje X (arriba/abajo)
-    }
-    if window.is_key_down(Key::Down) {
-        camera.orbit(0.0, -orbit_speed);  // Rotar hacia abajo
-    }
-
-    // Zoom con W y S
-    if window.is_key_down(Key::W) {
-        camera.zoom(-zoom_speed);  // Acercar
-    }
-    if window.is_key_down(Key::S) {
-        camera.zoom(zoom_speed);  // Alejar
+    if window.is_key_down(Key::Key2) {
+        *current_shader = PlanetShader::Gaseous;
     }
 }
+
+
+// Manejo de entrada para mover la cámara
+fn handle_input(window: &Window, camera: &mut Camera) {
+    let orbit_speed = PI / 50.0;
+    let zoom_speed = 0.5;
+
+    if window.is_key_down(Key::Left) {
+        camera.orbit(orbit_speed, 0.0);
+    }
+    if window.is_key_down(Key::Right) {
+        camera.orbit(-orbit_speed, 0.0);
+    }
+    if window.is_key_down(Key::Up) {
+        camera.orbit(0.0, orbit_speed);
+    }
+    if window.is_key_down(Key::Down) {
+        camera.orbit(0.0, -orbit_speed);
+    }
+
+    if window.is_key_down(Key::W) {
+        camera.zoom(-zoom_speed);
+    }
+    if window.is_key_down(Key::S) {
+        camera.zoom(zoom_speed);
+    }
+}
+
