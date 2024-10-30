@@ -79,13 +79,13 @@ pub fn gaseous_planet_shader(fragment: &Fragment, uniforms: &Uniforms) -> Color 
 
 
 
-
 pub fn frozen_planet_shader(fragment: &Fragment, uniforms: &Uniforms) -> Color {
     // Colores base: azul claro para el hielo y blanco para la nieve
-    let ice_color = Color::new(212, 246, 255); // Azul hielo (mayoría)
+    let ice_color = Color::new(212, 246, 255); // Azul hielo (mayoría) rgb()
     let snow_color = Color::new(255, 255, 255); // Blanco nieve
     let crack_color = Color::new(198, 231, 255); // Gris azulado para grietas
-    let fog_color = Color::new(0, 50, 5); // Color para la neblina (casi blanco con un toque de azul)
+    let cloud_color = moving_clouds_shader(fragment, uniforms); // Usa el shader de nubes en movimiento
+
 
     // Configurar el ruido para crear textura de hielo
     let mut noise = FastNoiseLite::new();
@@ -96,7 +96,7 @@ pub fn frozen_planet_shader(fragment: &Fragment, uniforms: &Uniforms) -> Color {
     let noise_value = noise.get_noise_2d(fragment.position.x, fragment.position.y);
     let normalized_noise = 0.1 * ((noise_value + 1.0) / 5.0);
 
-    // Ajuste de color basado en la textura de hielo y nieve
+    // Ajuste de color basado en la textura de hielo y nieve (inversión de colores)
     let surface_color = if normalized_noise < 0.02 {
         snow_color // Nieve en áreas dispersas
     } else if normalized_noise < 0.09 {
@@ -108,28 +108,9 @@ pub fn frozen_planet_shader(fragment: &Fragment, uniforms: &Uniforms) -> Color {
     // Efecto de brillo y reflejo
     let light_dir = Vec3::new(1.0, 1.0, -1.0).normalize();
     let intensity = fragment.normal.dot(&light_dir).max(0.0);
-    let reflective_color = surface_color * (0.7 + 0.3 * intensity); // Brillo ajustado según la luz
+    let reflective_color = surface_color * (0.7 + 0.3 * intensity); // Ajuste de brillo reducido
 
-    // Configuración del tiempo para animar la neblina
-    let time_factor = uniforms.time as f32 * 0.1; // Ajusta la velocidad de movimiento de la neblina
-
-    // Obtener el valor de ruido para la neblina animada
-    let fog_noise_value = uniforms.noise.get_noise_2d(
-        fragment.position.x + time_factor,
-        fragment.position.y + time_factor,
-    );
-
-    // Convertir el ruido en un rango de 0 a 1 para usarlo como valor de opacidad de la neblina
-    let fog_movement = (fog_noise_value + 1.0) / 0.01;
-
-    // Cálculo de la neblina basado en la distancia desde el centro del planeta
-    let distance_from_center = fragment.vertex_position.norm();
-    let fog_intensity = ((distance_from_center - 0.8) / 0.2).clamp(0.0, 1.0) * fog_movement; // Intensidad modulada por el ruido animado
-
-    // Interpolar entre el color del fragmento y el color de la neblina en movimiento
-    let final_color = reflective_color.lerp(&fog_color, fog_intensity);
-
+    let blended_color = reflective_color.lerp(&cloud_color, 0.45);
     // Aplicar un ajuste de profundidad para el sombreado
-    depth_based_fragment_shader(fragment, final_color)
+    depth_based_fragment_shader(fragment, blended_color)
 }
-
