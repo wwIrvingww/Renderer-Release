@@ -79,12 +79,13 @@ pub fn gaseous_planet_shader(fragment: &Fragment, uniforms: &Uniforms) -> Color 
 
 
 
+
 pub fn frozen_planet_shader(fragment: &Fragment, uniforms: &Uniforms) -> Color {
     // Colores base: azul claro para el hielo y blanco para la nieve
-    let ice_color = Color::new(212, 246, 255); // Azul hielo (mayoría) rgb()
+    let ice_color = Color::new(19, 62, 135); // Azul hielo (mayoría) rgb() rgb()
     let snow_color = Color::new(255, 255, 255); // Blanco nieve
     let crack_color = Color::new(198, 231, 255); // Gris azulado para grietas
-    let cloud_color = moving_clouds_shader(fragment, uniforms); // Usa el shader de nubes en movimiento
+    let cloud_color = Color::new(247, 247, 248); // Usa el shader de nubes en movimiento
 
 
     // Configurar el ruido para crear textura de hielo
@@ -95,6 +96,12 @@ pub fn frozen_planet_shader(fragment: &Fragment, uniforms: &Uniforms) -> Color {
     // Obtener valores de ruido para la textura de hielo y nieve
     let noise_value = noise.get_noise_2d(fragment.position.x, fragment.position.y);
     let normalized_noise = 0.1 * ((noise_value + 1.0) / 5.0);
+
+    //Fog
+    let time_factor = uniforms.time as f32 * 2.1; // Ajusta la velocidad de movimiento de las nubes
+    let noiseFog_value = 0.5 * uniforms.noise.get_noise_2d(fragment.position.x + time_factor, fragment.position.y);
+    let fog_opacity = (noiseFog_value + 1.0) / 1.0;
+
 
     // Ajuste de color basado en la textura de hielo y nieve (inversión de colores)
     let surface_color = if normalized_noise < 0.02 {
@@ -110,7 +117,7 @@ pub fn frozen_planet_shader(fragment: &Fragment, uniforms: &Uniforms) -> Color {
     let intensity = fragment.normal.dot(&light_dir).max(0.0);
     let reflective_color = surface_color * (0.7 + 0.3 * intensity); // Ajuste de brillo reducido
 
-    let blended_color = reflective_color.lerp(&cloud_color, 0.45);
+    let blended_color = reflective_color.lerp(&cloud_color, fog_opacity);
     // Aplicar un ajuste de profundidad para el sombreado
     depth_based_fragment_shader(fragment, blended_color)
 }
