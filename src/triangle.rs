@@ -21,7 +21,7 @@ pub fn triangle(v1: &Vertex, v2: &Vertex, v3: &Vertex) -> Vec<Fragment> {
 
   let (min_x, min_y, max_x, max_y) = calculate_bounding_box(&a, &b, &c);
 
-  let light_dir = Vec3::new(0.0, 0.0, 1.0);
+  // let light_dir = Vec3::new(0.0, 0.0, 1.0);
   let triangle_area = edge_function(&a, &b, &c);
 
   //f (min_y < screen width ...
@@ -34,7 +34,7 @@ pub fn triangle(v1: &Vertex, v2: &Vertex, v3: &Vertex) -> Vec<Fragment> {
       if w1 >= 0.0 && w1 <= 1.0 && w2 >= 0.0 && w2 <= 1.0 && w3 >= 0.0 && w3 <= 1.0 {
         let normal = v1.transformed_normal * w1 + v2.transformed_normal * w2 + v3.transformed_normal * w3;
         let normal = normal.normalize();
-        let intensity = dot(&normal, &light_dir).max(0.0);
+        // let intensity = dot(&normal, &light_dir).max(0.0);
 
         // Interpolación de la posición del vértice
         let vertex_position = v1.position * w1 + v2.position * w2 + v3.position * w3;
@@ -47,7 +47,7 @@ pub fn triangle(v1: &Vertex, v2: &Vertex, v3: &Vertex) -> Vec<Fragment> {
           Color::new(255, 255, 255), 
           depth, 
           normal, 
-          intensity,
+          1.0,
           Vec2::new(vertex_position.x, vertex_position.y),
         ));
       }
