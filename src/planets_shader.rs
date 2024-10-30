@@ -66,19 +66,66 @@ fn fbm_with_fastnoise(x: f32, y: f32, noise: &FastNoiseLite) -> f32 {
 
 /// Segundo shader de planeta: simula un planeta gaseoso con nubes en movimiento
 pub fn gaseous_planet_shader(fragment: &Fragment, uniforms: &Uniforms) -> Color {
-    // Color base para el planeta, más azulado para un aspecto gaseoso
-    let base_color = Color::new(0, 0, 139); // Azul oscuro como fondo del planeta
-    let cloud_color = moving_clouds_shader(fragment, uniforms); // Usa el shader de nubes en movimiento
+    // Colores base para las bandas de Júpiter
+    let dark_brown = Color::new(139, 69, 19);      // Marrón oscuro
+    let beige = Color::new(222, 184, 135);         // Beige claro
+    let orange = Color::new(255, 140, 0);          // Naranja
+    let white = Color::new(255, 255, 255);         // Blanco
 
-    // Mezcla entre el color base y las nubes para un efecto gaseoso
-    let blended_color = base_color.lerp(&cloud_color, 0.7);
+    // Color para la Gran Mancha Roja
+    let red_spot_color = Color::new(255, 69, 0);   // Rojo para la Gran Mancha
+    let spot_highlight = Color::new(255, 160, 122); // Tono rosado para detalles
 
-    // Aplicar un ajuste de profundidad para mejorar el aspecto de las nubes y el fondo gaseoso
-    depth_based_fragment_shader(fragment, blended_color)
+    // Parámetros de ruido para simular las bandas y la turbulencia
+    let mut band_noise = FastNoiseLite::new();
+    band_noise.set_noise_type(Some(NoiseType::Perlin));
+    band_noise.set_frequency(Some(0.05));          // Frecuencia baja para bandas amplias
+
+    let mut turbulence_noise = FastNoiseLite::new();
+    turbulence_noise.set_noise_type(Some(NoiseType::Perlin));
+    turbulence_noise.set_frequency(Some(0.2));     // Frecuencia más alta para detalles de turbulencia
+
+    // Animación de bandas horizontales y rotación
+    let time_factor = uniforms.time as f32 * 0.03; // Control de velocidad de rotación
+
+    // Generar ruido para las bandas y turbulencia
+    let band_value = band_noise.get_noise_2d(fragment.position.x, fragment.position.y + time_factor);
+    let turbulence_value = turbulence_noise.get_noise_2d(fragment.position.x + time_factor, fragment.position.y);
+
+    // Selección de color basado en el valor de ruido para bandas horizontales
+    let band_color = if band_value < -0.2 {
+        dark_brown
+    } else if band_value < 0.1 {
+        beige
+    } else if band_value < 0.3 {
+        orange
+    } else {
+        white
+    };
+
+    // Ajuste del color de la turbulencia mezclando ligeramente las bandas
+    let turbulent_color = band_color.lerp(&beige, turbulence_value.abs() * 0.3);
+
+    // Gran Mancha Roja - Agregada como una textura circular
+    let spot_position = nalgebra_glm::vec2(0.3, -0.5); // Posición fija en coordenadas del planeta
+    let fragment_position = nalgebra_glm::vec2(fragment.position.x, fragment.position.y);
+    let spot_distance = nalgebra_glm::distance(&fragment_position, &spot_position);
+
+    let red_spot_effect = if spot_distance < 0.1 {
+        let spot_intensity = ((0.1 - spot_distance) / 0.1).clamp(0.0, 1.0); // Intensidad más alta en el centro
+        red_spot_color.lerp(&spot_highlight, spot_intensity)
+    } else {
+        turbulent_color // Sin efecto fuera del área de la mancha
+    };
+
+    // Efecto de sombreado en los bordes para simular la curvatura
+    let light_dir = Vec3::new(1.0, 1.0, -1.0).normalize();
+    let intensity = fragment.normal.dot(&light_dir).max(0.0);
+    let shaded_color = red_spot_effect * (0.7 + 0.3 * intensity); // Mezcla sombreada
+
+    // Aplicar un ajuste de profundidad para una apariencia tridimensional
+    depth_based_fragment_shader(fragment, shaded_color)
 }
-
-
-
 
 pub fn frozen_planet_shader(fragment: &Fragment, uniforms: &Uniforms) -> Color {
     // Colores base: azul claro para el hielo y blanco para la nieve
