@@ -19,7 +19,7 @@ use vertex::Vertex;
 use obj::Obj;
 use triangle::triangle;
 use shader::{vertex_shader, pattern_fragment_shader};  
-use planets_shader::{rocky_planet_shader, gaseous_planet_shader, frozen_planet_shader, earth_planet_shader};  // Importamos los shaders de planetas
+use planets_shader::{rocky_planet_shader, gaseous_planet_shader, frozen_planet_shader, earth_planet_shader, oceanic_planet_shader};  // Importamos los shaders de planetas
 use camera::Camera;
 use fastnoise_lite::{FastNoiseLite, NoiseType, FractalType};
 
@@ -40,6 +40,7 @@ enum PlanetShader {
     Gaseous,
     Frozen,
     Earth,
+    Oceanic,
 }
 
 fn create_cracked_earth_noise() -> FastNoiseLite {
@@ -105,7 +106,7 @@ fn render(framebuffer: &mut Framebuffer, uniforms: &Uniforms, vertex_array: &[Ve
                 PlanetShader::Gaseous => gaseous_planet_shader(&fragment, uniforms),
                 PlanetShader::Frozen => frozen_planet_shader(&fragment, uniforms),
                 PlanetShader::Earth => earth_planet_shader(&fragment, uniforms),
-
+                PlanetShader::Oceanic => oceanic_planet_shader(&fragment, uniforms),
             };
             framebuffer.set_current_color(shaded_color.to_hex());
             framebuffer.point(x, y, fragment.depth);
@@ -195,7 +196,9 @@ fn handle_shader_selection(window: &Window, current_shader: &mut PlanetShader) {
     }
     if window.is_key_down(Key::Key4) {
         *current_shader = PlanetShader::Earth;
-
+    }
+    if window.is_key_down(Key::Key5) {
+        *current_shader = PlanetShader::Oceanic;
     }
 }
 
