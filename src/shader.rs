@@ -342,3 +342,35 @@ pub fn cracked_earth_shader(fragment: &Fragment, uniforms: &Uniforms) -> Color {
     }
 }
 
+pub fn ocean_currents_shader(fragment: &Fragment, uniforms: &Uniforms) -> Color {
+    // Colores base para el agua
+    let deep_ocean_color = Color::new(0, 70, 135);       // Azul profundo
+    let current_color = Color::new(64, 162, 216);        // Azul claro para corrientes
+    let warm_ocean_color = Color::new(0, 140, 150);      // Verde azulado para zonas cálidas
+
+    // Configurar ruido para las corrientes de agua
+    let mut current_noise = FastNoiseLite::new();
+    current_noise.set_noise_type(Some(NoiseType::Perlin));
+    current_noise.set_frequency(Some(0.08));
+
+    let mut wave_noise = FastNoiseLite::new();
+    wave_noise.set_noise_type(Some(NoiseType::OpenSimplex2));
+    wave_noise.set_frequency(Some(0.1));                 // Variaciones de flujo
+
+    // Movimiento y dirección de las corrientes
+    let time_factor = uniforms.time as f32 * 1.5;
+    let current_value = current_noise.get_noise_2d(fragment.position.x + time_factor, fragment.position.y);
+    let wave_value = wave_noise.get_noise_2d(fragment.position.x, fragment.position.y + time_factor);
+
+    // Color base del océano
+    let ocean_base = deep_ocean_color.lerp(&current_color, current_value.abs() * 0.6);
+    let ocean_with_temp = ocean_base.lerp(&warm_ocean_color, wave_value * 0.3); // Zonas cálidas en el océano
+
+    // Reflejos suaves y destellos de luz
+    let light_dir = Vec3::new(1.0, 1.0, -1.0).normalize();
+    let intensity = fragment.normal.dot(&light_dir).max(0.0);
+    let highlighted_color = ocean_with_temp * (0.7 + 0.3 * intensity);
+
+    // Retornar el color con reflejo de luz y corrientes en movimiento
+    depth_based_fragment_shader(fragment, highlighted_color)
+}
