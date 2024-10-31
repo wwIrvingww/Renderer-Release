@@ -8,63 +8,57 @@ use fastnoise_lite::{FastNoiseLite, NoiseType};
 
 /// Primer shader de planeta: simula un planeta rocoso con textura granular
 pub fn rocky_planet_shader(fragment: &Fragment, uniforms: &Uniforms) -> Color {
-    // Configuración de colores base
-    let base_color = Color::new(153, 102, 51);      // Marrón
-    let rock_color = Color::new(139, 69, 19);       // Marrón oscuro
-    let mountain_color = Color::new(105, 105, 105); // Gris oscuro
-    let atmosphere_color = Color::new(200, 180, 170); // Color tenue para atmósfera
+    // Colores base para simular una superficie árida y terrosa
+    let sand_color = Color::new(210, 180, 140);    // Color de arena ocre 210, 180, 140
+    let rock_color = Color::new(139, 115, 85);     // Color de roca marrón oscuro
+    let cracked_sand_color = Color::new(148, 129, 104); // Arena agrietada beige 220, 200, 160 
 
-    // Generador de ruido configurado como Perlin
-    let mut noise = FastNoiseLite::new();
-    noise.set_noise_type(Some(fastnoise_lite::NoiseType::Perlin)); // Envolvemos en `Some`
+    // Configuración de ruido para simular dunas de arena y formaciones rocosas
+    let mut dune_noise = FastNoiseLite::new();
+    dune_noise.set_noise_type(Some(NoiseType::OpenSimplex2));  // Patrón fluido para dunas
+    dune_noise.set_frequency(Some(0.02));                      // Frecuencia baja para dunas grandes 0.02
 
-    // Obtener un valor FBM para el ruido con FastNoiseLite
-    let fbm_value = fbm_with_fastnoise(
-        fragment.vertex_position.x * 0.5,
-        fragment.vertex_position.y * 0.5,
-        &noise,
+    let mut rock_noise = FastNoiseLite::new();
+    rock_noise.set_noise_type(Some(NoiseType::Cellular));      // Celular para rocas y grietas
+    rock_noise.set_frequency(Some(0.1));                       // Frecuencia media para detalles en roca
+
+    // Animación del polvo en el viento
+    let time_factor = uniforms.time as f32 * 0.5;            // Control de velocidad de movimiento del polvo
+    let dust_movement = dune_noise.get_noise_2d(
+        fragment.position.x + time_factor,
+        fragment.position.y + time_factor,
     );
-    let normalized_noise = (fbm_value + 1.0) / 2.0;
 
-    // Ajuste de color según el relieve usando `normalized_noise`
-    let terrain_color = if normalized_noise < 0.4 {
-        rock_color.blend_multiply(&base_color)
-    } else if normalized_noise < 0.7 {
-        base_color.blend_add(&mountain_color)
+    // Obtener el valor de ruido para las dunas y las formaciones rocosas
+    let dune_value = dune_noise.get_noise_2d(fragment.position.x, fragment.position.y);
+    let rock_value = rock_noise.get_noise_2d(fragment.position.x, fragment.position.y);
+
+    // Asignación de color en función del valor de ruido
+    let surface_color = if dune_value > 0.3 {
+        sand_color.lerp(&rock_color, rock_value.abs())         // Mezcla entre arena y roca
     } else {
-        mountain_color
+        sand_color.lerp(&cracked_sand_color, rock_value.abs()) // Grietas en la arena
     };
 
-    // Iluminación
-    let light_dir = Vec3::new(1.0, -0.5, 1.0).normalize();
+    // Efecto de desplazamiento suave para simular polvo en movimiento
+    let dusty_color = surface_color.lerp(&sand_color, dust_movement.abs() * 0.2);
+
+    // Iluminación intensa y sombras para resaltar el relieve
+    let light_dir = Vec3::new(1.0, -1.0, 0.5).normalize();
     let intensity = fragment.normal.dot(&light_dir).max(0.0);
-    let shaded_color = terrain_color * (0.4 + 0.6 * intensity);
+    let illuminated_color = dusty_color * (0.6 + 0.4 * intensity);
 
-    // Efecto de atmósfera en el borde del planeta
+    // Efecto de niebla atmosférica en el horizonte
     let distance_from_center = fragment.vertex_position.norm();
-    let atmosphere_effect = ((1.0 - distance_from_center.clamp(0.8, 1.0)) / 0.2).clamp(0.0, 1.0);
+    let fog_intensity = ((distance_from_center - 0.7) / 0.3).clamp(0.0, 1.0);
+    let fog_color = Color::new(255, 245, 230); // Color de la niebla
+    let final_color = illuminated_color.lerp(&fog_color, fog_intensity);
 
-    // Mezcla de color de atmósfera
-    shaded_color.blend_screen(&atmosphere_color) * atmosphere_effect
+    // Aplicar sombreado basado en profundidad para simular la curvatura del planeta
+    depth_based_fragment_shader(fragment, final_color)
 }
 
-// Función de ruido FBM usando FastNoiseLite para más rugosidad
-fn fbm_with_fastnoise(x: f32, y: f32, noise: &FastNoiseLite) -> f32 {
-    let mut total = 0.0;
-    let mut frequency = 1.0;
-    let mut amplitude = 0.5;
-
-    for _ in 0..5 {
-        total += noise.get_noise_2d(x * frequency, y * frequency) * amplitude; // Cambiado a `get_noise_2d`
-        frequency *= 2.0;
-        amplitude *= 0.5;
-    }
-
-    total
-}
-
-
-/// Segundo shader de planeta: simula un planeta gaseoso con nubes en movimiento
+/// Segundo shader de planeta: simula un planeta como Jupitee
 pub fn gaseous_planet_shader(fragment: &Fragment, uniforms: &Uniforms) -> Color {
     // Colores base para las bandas de Júpiter
     let dark_brown = Color::new(139, 69, 19);      // Marrón oscuro
@@ -127,6 +121,7 @@ pub fn gaseous_planet_shader(fragment: &Fragment, uniforms: &Uniforms) -> Color 
     depth_based_fragment_shader(fragment, shaded_color)
 }
 
+/// Tercer shader de planeta: simula un planeta congelado
 pub fn frozen_planet_shader(fragment: &Fragment, uniforms: &Uniforms) -> Color {
     // Colores base: azul claro para el hielo y blanco para la nieve
     let ice_color = Color::new(19, 62, 135); // Azul hielo (mayoría) rgb() rgb()
@@ -168,3 +163,60 @@ pub fn frozen_planet_shader(fragment: &Fragment, uniforms: &Uniforms) -> Color {
     // Aplicar un ajuste de profundidad para el sombreado
     depth_based_fragment_shader(fragment, blended_color)
 }
+
+/// Cuarto shader de planeta: simula el planeta Tierra
+pub fn earth_planet_shader(fragment: &Fragment, uniforms: &Uniforms) -> Color {
+    // Colores base para océanos y continentes
+    let ocean_color = Color::new(0, 105, 148);      // Azul océano profundo
+    let shallow_ocean_color = Color::new(0, 150, 200); // Azul claro para zonas poco profundas
+    let land_color = Color::new(34, 139, 34);       // Verde para continentes
+    let mountain_color = Color::new(139, 69, 19);   // Marrón para montañas y elevaciones
+
+    // Configurar ruido para texturas de océano y continentes
+    let mut terrain_noise = FastNoiseLite::new();
+    terrain_noise.set_noise_type(Some(NoiseType::OpenSimplex2));
+    terrain_noise.set_frequency(Some(0.01));          // Frecuencia para detalles del terreno
+
+    let mut ocean_noise = FastNoiseLite::new();
+    ocean_noise.set_noise_type(Some(NoiseType::Perlin));
+    ocean_noise.set_frequency(Some(0.5));           // Frecuencia baja para olas suaves
+
+    // Generar valores de ruido para el terreno y el océano
+    let terrain_value = terrain_noise.get_noise_2d(fragment.position.x, fragment.position.y);
+    let ocean_variation = ocean_noise.get_noise_2d(fragment.position.x, fragment.position.y);
+
+    // Asignación de colores en función del ruido para el océano y los continentes
+    let base_terrain_color = if terrain_value < -0.3 {
+        ocean_color.lerp(&shallow_ocean_color, ocean_variation * 0.2) // Textura de olas
+    } else if terrain_value < 0.1 {
+        land_color.lerp(&mountain_color, terrain_value.abs() * 0.4)    // Textura de relieve en tierra
+    } else {
+        mountain_color
+    };
+
+    // Nubes en movimiento usando ruido desplazado
+    let mut cloud_noise = FastNoiseLite::new();
+    cloud_noise.set_noise_type(Some(NoiseType::Perlin));
+    cloud_noise.set_frequency(Some(0.02));
+
+    // Animación de las nubes con desplazamiento por tiempo
+    let time_factor = uniforms.time as f32 * 0.1;
+    let cloud_value = cloud_noise.get_noise_2d(fragment.position.x + time_factor, fragment.position.y);
+    let cloud_opacity = ((cloud_value + 1.0) / 2.0).clamp(0.0, 1.0);
+
+    let cloud_color = Color::new(255, 255, 255);
+    let cloud_layer_color = base_terrain_color.lerp(&cloud_color, cloud_opacity * 0.5);
+
+    // Efecto atmosférico
+    let distance_from_center = fragment.vertex_position.norm();
+    let atmosphere_intensity = ((distance_from_center - 0.8) / 0.3).clamp(0.0, 1.0);
+    let atmosphere_color = Color::new(135, 206, 250);
+
+    // Interpolación final con la atmósfera
+    let final_color = cloud_layer_color.lerp(&atmosphere_color, atmosphere_intensity);
+
+    // Sombreado final
+    depth_based_fragment_shader(fragment, final_color)
+}
+
+
