@@ -167,27 +167,33 @@ pub fn frozen_planet_shader(fragment: &Fragment, uniforms: &Uniforms) -> Color {
 /// Cuarto shader de planeta: simula el planeta Tierra
 pub fn earth_planet_shader(fragment: &Fragment, uniforms: &Uniforms) -> Color {
     // Colores base para océanos y continentes
-    let ocean_color = Color::new(0, 105, 148);      // Azul océano profundo
-    let shallow_ocean_color = Color::new(0, 150, 200); // Azul claro para zonas poco profundas
-    let land_color = Color::new(34, 139, 34);       // Verde para continentes
-    let mountain_color = Color::new(139, 69, 19);   // Marrón para montañas y elevaciones
+    let ocean_color = Color::new(0, 105, 148);         // Azul océano profundo
+    let current_color = Color::new(64, 162, 216);       // Azul claro para corrientes 0, 120, 160
+    let shallow_ocean_color = Color::new(11, 96,176,); // Azul claro para zonas poco profundas 0, 150, 200
+    let land_color = Color::new(34, 139, 34);          // Verde para continentes
+    let mountain_color = Color::new(139, 69, 19);      // Marrón para montañas y elevaciones
 
     // Configurar ruido para texturas de océano y continentes
     let mut terrain_noise = FastNoiseLite::new();
-    terrain_noise.set_noise_type(Some(NoiseType::OpenSimplex2));
-    terrain_noise.set_frequency(Some(0.01));          // Frecuencia para detalles del terreno
+    terrain_noise.set_noise_type(Some(NoiseType::OpenSimplex2S));
+    terrain_noise.set_frequency(Some(0.01));            // Frecuencia para detalles del terreno
 
-    let mut ocean_noise = FastNoiseLite::new();
-    ocean_noise.set_noise_type(Some(NoiseType::Perlin));
-    ocean_noise.set_frequency(Some(0.5));           // Frecuencia baja para olas suaves
+    let mut current_noise = FastNoiseLite::new();
+    current_noise.set_noise_type(Some(NoiseType::Perlin));
+    current_noise.set_frequency(Some(0.1));             // Frecuencia para detalles de corrientes
+
+    // Movimiento de corrientes oceánicas
+    let time_factor = uniforms.time as f32 * 0.2;
+    let current_value = current_noise.get_noise_2d(fragment.position.x + time_factor, fragment.position.y);
 
     // Generar valores de ruido para el terreno y el océano
     let terrain_value = terrain_noise.get_noise_2d(fragment.position.x, fragment.position.y);
-    let ocean_variation = ocean_noise.get_noise_2d(fragment.position.x, fragment.position.y);
 
     // Asignación de colores en función del ruido para el océano y los continentes
     let base_terrain_color = if terrain_value < -0.3 {
-        ocean_color.lerp(&shallow_ocean_color, ocean_variation * 0.2) // Textura de olas
+        // Textura de corrientes oceánicas
+        let ocean_texture = ocean_color.lerp(&current_color, current_value.abs() * 0.4); 
+        ocean_texture.lerp(&shallow_ocean_color, terrain_value * 0.1)
     } else if terrain_value < 0.1 {
         land_color.lerp(&mountain_color, terrain_value.abs() * 0.4)    // Textura de relieve en tierra
     } else {
@@ -200,8 +206,8 @@ pub fn earth_planet_shader(fragment: &Fragment, uniforms: &Uniforms) -> Color {
     cloud_noise.set_frequency(Some(0.02));
 
     // Animación de las nubes con desplazamiento por tiempo
-    let time_factor = uniforms.time as f32 * 0.1;
-    let cloud_value = cloud_noise.get_noise_2d(fragment.position.x + time_factor, fragment.position.y);
+    let cloud_time_factor = uniforms.time as f32 * 1.1;
+    let cloud_value = cloud_noise.get_noise_2d(fragment.position.x + cloud_time_factor, fragment.position.y);
     let cloud_opacity = ((cloud_value + 1.0) / 2.0).clamp(0.0, 1.0);
 
     let cloud_color = Color::new(255, 255, 255);
@@ -218,5 +224,6 @@ pub fn earth_planet_shader(fragment: &Fragment, uniforms: &Uniforms) -> Color {
     // Sombreado final
     depth_based_fragment_shader(fragment, final_color)
 }
+
 
 
