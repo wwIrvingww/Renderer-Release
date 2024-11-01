@@ -275,7 +275,7 @@ pub fn ufo_shader(fragment: &Fragment, uniforms: &Uniforms) -> Color {
     metal_noise.set_frequency(Some(0.005));               // Frecuencia para textura del metal
 
     let reflection_value = (metal_noise.get_noise_2d(fragment.position.x, fragment.position.y) * 1.5).clamp(-1.0, 0.0); 
-    let metallic_surface = metallic_color.lerp(&highlight_color, reflection_value.abs() * 0.5); // Ajuste de intensidad del reflejo
+    let metallic_surface = metallic_color.lerp(&highlight_color, reflection_value.abs() * 0.5 * fragment.intensity); // Ajuste de intensidad del reflejo
 
     // Efecto de aura alrededor del objeto
     let distance_from_center = fragment.vertex_position.norm();
@@ -285,6 +285,7 @@ pub fn ufo_shader(fragment: &Fragment, uniforms: &Uniforms) -> Color {
     // Color final con textura metálica y aura
     depth_based_fragment_shader(fragment, aura_effect)
 }
+
 
 
 
