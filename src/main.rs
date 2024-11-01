@@ -12,14 +12,19 @@ mod color;
 mod fragment;
 mod shader;
 mod camera;
-mod planets_shader;  // Importamos el nuevo módulo de planetas
+mod planets_shader;
 
 use framebuffer::Framebuffer;
 use vertex::Vertex;
 use obj::Obj;
 use triangle::triangle;
 use shader::{vertex_shader, pattern_fragment_shader};  
-use planets_shader::{rocky_planet_shader, gaseous_planet_shader, frozen_planet_shader, earth_planet_shader, oceanic_planet_shader};  // Importamos los shaders de planetas
+use planets_shader::{rocky_planet_shader, 
+                    gaseous_planet_shader, 
+                    frozen_planet_shader, 
+                    earth_planet_shader, 
+                    oceanic_planet_shader,
+                    ufo_shader};  
 use camera::Camera;
 use fastnoise_lite::{FastNoiseLite, NoiseType, FractalType};
 
@@ -34,13 +39,26 @@ pub struct Uniforms<'a> {
     noise: &'a FastNoiseLite,
 }
 
-// Inicializamos el shader predeterminado como el primer shader (rocoso)
 enum PlanetShader {
     Rocky,
     Gaseous,
     Frozen,
     Earth,
     Oceanic,
+    Ufo
+}
+
+enum CurrentModel {
+    Sphere,
+    Ufo,
+}
+
+// Inicializa la cámara en función del modelo seleccionado
+fn initialize_camera(model: &CurrentModel) -> Camera {
+    match model {
+        CurrentModel::Sphere => Camera::new(Vec3::new(0.0, 0.0, 5.0), Vec3::new(0.0, 0.0, 0.0), Vec3::new(0.0, 1.0, 0.0)),
+        CurrentModel::Ufo => Camera::new(Vec3::new(0.0, 0.0, 35.0), Vec3::new(0.0, 0.0, 0.0), Vec3::new(0.0, 1.0, 0.0)),
+    }
 }
 
 fn create_cracked_earth_noise() -> FastNoiseLite {
@@ -72,7 +90,6 @@ fn create_model_matrix() -> Mat4 {
     Mat4::identity()
 }
 
-// Cambia la firma de `render` para aceptar una referencia a `PlanetShader`
 fn render(framebuffer: &mut Framebuffer, uniforms: &Uniforms, vertex_array: &[Vertex], planet_shader: &PlanetShader) {
     let mut transformed_vertices = Vec::with_capacity(vertex_array.len());
     for vertex in vertex_array {
@@ -100,13 +117,13 @@ fn render(framebuffer: &mut Framebuffer, uniforms: &Uniforms, vertex_array: &[Ve
         let x = fragment.position.x as usize;
         let y = fragment.position.y as usize;
         if x < framebuffer.width && y < framebuffer.height {
-            // Aplicar el shader de planeta seleccionado
             let shaded_color = match planet_shader {
                 PlanetShader::Rocky => rocky_planet_shader(&fragment, uniforms),
                 PlanetShader::Gaseous => gaseous_planet_shader(&fragment, uniforms),
                 PlanetShader::Frozen => frozen_planet_shader(&fragment, uniforms),
                 PlanetShader::Earth => earth_planet_shader(&fragment, uniforms),
                 PlanetShader::Oceanic => oceanic_planet_shader(&fragment, uniforms),
+                PlanetShader::Ufo => ufo_shader(&fragment, uniforms),
             };
             framebuffer.set_current_color(shaded_color.to_hex());
             framebuffer.point(x, y, fragment.depth);
@@ -132,14 +149,17 @@ fn main() {
 
     framebuffer.set_background_color(0x433878);
 
-    let mut camera = Camera::new(Vec3::new(0.0, 0.0, 5.0), Vec3::new(0.0, 0.0, 0.0), Vec3::new(0.0, 1.0, 0.0));
     let noise = create_cracked_earth_noise();
 
-    let obj = Obj::load("src/assets/sphere.obj").expect("Failed to load obj");
-    let vertex_arrays = obj.get_vertex_array();
+    let sphere_obj = Obj::load("src/assets/sphere.obj").expect("Failed to load sphere.obj");
+    let ufo_obj = Obj::load("src/assets/ufo.obj").expect("Failed to load ufo.obj");
 
     let mut time_counter = 0;
-    let mut current_planet_shader = PlanetShader::Rocky;  // Shader por defecto
+    let mut current_planet_shader = PlanetShader::Rocky;
+    let mut current_model = CurrentModel::Sphere; // Empezamos con el modelo esfera
+
+    // Inicializa la cámara en función del modelo actual
+    let mut camera = initialize_camera(&current_model);
 
     while window.is_open() {
         if window.is_key_down(Key::Escape) {
@@ -147,7 +167,7 @@ fn main() {
         }
 
         handle_input(&window, &mut camera);
-        handle_shader_selection(&window, &mut current_planet_shader);
+        handle_key_input(&window, &mut current_planet_shader, &mut current_model, &mut camera);
 
         framebuffer.clear();
 
@@ -172,8 +192,13 @@ fn main() {
             noise: &noise,
         };
 
+        let vertex_array = match current_model {
+            CurrentModel::Sphere => sphere_obj.get_vertex_array(),
+            CurrentModel::Ufo => ufo_obj.get_vertex_array(),
+        };
+
         framebuffer.set_current_color(0xFFDDDD);
-        render(&mut framebuffer, &uniforms, &vertex_arrays, &current_planet_shader);  // Pasar `planet_shader` como referencia
+        render(&mut framebuffer, &uniforms, &vertex_array, &current_planet_shader);
 
         window
             .update_with_buffer(&framebuffer.buffer, framebuffer_width, framebuffer_height)
@@ -183,27 +208,41 @@ fn main() {
     }
 }
 
-// Función para manejar la selección de shaders de planeta
-fn handle_shader_selection(window: &Window, current_shader: &mut PlanetShader) {
+// Función para manejar la selección de shaders y modelos de planeta
+fn handle_key_input(window: &Window, current_shader: &mut PlanetShader, current_model: &mut CurrentModel, camera: &mut Camera) {
     if window.is_key_down(Key::Key1) {
         *current_shader = PlanetShader::Rocky;
+        *current_model = CurrentModel::Sphere; // Volver al modelo Sphere
+        *camera = initialize_camera(current_model); // Reinicializar la cámara
     }
     if window.is_key_down(Key::Key2) {
         *current_shader = PlanetShader::Gaseous;
+        *current_model = CurrentModel::Sphere; // Volver al modelo Sphere
+        *camera = initialize_camera(current_model); // Reinicializar la cámara
     }
     if window.is_key_down(Key::Key3) {
         *current_shader = PlanetShader::Frozen;
+        *current_model = CurrentModel::Sphere; // Volver al modelo Sphere
+        *camera = initialize_camera(current_model); // Reinicializar la cámara
     }
     if window.is_key_down(Key::Key4) {
         *current_shader = PlanetShader::Earth;
+        *current_model = CurrentModel::Sphere; // Volver al modelo Sphere
+        *camera = initialize_camera(current_model); // Reinicializar la cámara
     }
     if window.is_key_down(Key::Key5) {
         *current_shader = PlanetShader::Oceanic;
+        *current_model = CurrentModel::Sphere; // Volver al modelo Sphere
+        *camera = initialize_camera(current_model); // Reinicializar la cámara
+    }
+    if window.is_key_down(Key::Key6) {
+        *current_shader = PlanetShader::Ufo;
+        *current_model = CurrentModel::Ufo; // Cambiar al modelo UFO
+        *camera = initialize_camera(current_model); // Reinicializar la cámara
     }
 }
 
 
-// Manejo de entrada para mover la cámara
 fn handle_input(window: &Window, camera: &mut Camera) {
     let orbit_speed = PI / 50.0;
     let zoom_speed = 0.5;
@@ -228,4 +267,3 @@ fn handle_input(window: &Window, camera: &mut Camera) {
         camera.zoom(zoom_speed);
     }
 }
-
