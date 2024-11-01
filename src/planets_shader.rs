@@ -175,12 +175,16 @@ pub fn earth_planet_shader(fragment: &Fragment, uniforms: &Uniforms) -> Color {
     terrain_noise.set_noise_type(Some(NoiseType::OpenSimplex2S));
     terrain_noise.set_frequency(Some(0.01));            // Frecuencia para detalles del terreno
 
-    // Generar valores de ruido para el terreno y el océano
-    let terrain_value = terrain_noise.get_noise_2d(fragment.position.x, fragment.position.y);
+    // Animación del movimiento tectónico en los continentes
+    let tectonic_time_factor = uniforms.time as f32 * 0.09; // Velocidad de desplazamiento de placas
+    let terrain_value = terrain_noise.get_noise_2d(
+        fragment.position.x + tectonic_time_factor, 
+        fragment.position.y + tectonic_time_factor,
+    );
 
     // Asignación de colores en función del ruido para el océano y los continentes
     let base_terrain_color = if terrain_value < -0.3 {
-        ocean_currents_shader(fragment, uniforms) // Llamada al shader de corrientes oceánicas
+        ocean_currents_shader(fragment, uniforms) // Llamada al shader de corrientes oceánicas, sin animación
     } else if terrain_value < 0.1 {
         land_color.lerp(&mountain_color, terrain_value.abs() * 0.4)    // Textura de relieve en tierra
     } else {
@@ -193,8 +197,11 @@ pub fn earth_planet_shader(fragment: &Fragment, uniforms: &Uniforms) -> Color {
     cloud_noise.set_frequency(Some(0.02));
 
     // Animación de las nubes con desplazamiento por tiempo
-    let cloud_time_factor = uniforms.time as f32 * 1.1;
-    let cloud_value = cloud_noise.get_noise_2d(fragment.position.x + cloud_time_factor, fragment.position.y);
+    let cloud_time_factor = uniforms.time as f32 * 0.8;
+    let cloud_value = cloud_noise.get_noise_2d(
+        fragment.position.x + cloud_time_factor,
+        fragment.position.y,
+    );
     let cloud_opacity = ((cloud_value + 1.0) / 2.0).clamp(0.0, 1.0);
 
     let cloud_color = Color::new(255, 255, 255);
@@ -211,6 +218,7 @@ pub fn earth_planet_shader(fragment: &Fragment, uniforms: &Uniforms) -> Color {
     // Sombreado final
     depth_based_fragment_shader(fragment, final_color)
 }
+
 
 /// Quinto shader de planeta: simula un planeta de agua 
 pub fn oceanic_planet_shader(fragment: &Fragment, uniforms: &Uniforms) -> Color {
