@@ -2,7 +2,7 @@ use crate::color::Color;
 use crate::fragment::Fragment;
 use crate::Uniforms;
 use crate::shader::{depth_based_fragment_shader, noise_based_fragment_shader, moving_clouds_shader, ocean_currents_shader};
-use nalgebra_glm::{Vec3};
+use nalgebra_glm::{Vec3, Vec2};
 use fastnoise_lite::{FastNoiseLite, NoiseType};
 
 
@@ -293,7 +293,4 @@ pub fn ufo_shader(fragment: &Fragment, uniforms: &Uniforms) -> Color {
     // Color final con textura metálica y aura
     depth_based_fragment_shader(fragment, aura_effect)
 }
-
-
-
 

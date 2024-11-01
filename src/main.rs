@@ -91,12 +91,17 @@ fn create_model_matrix() -> Mat4 {
 }
 
 fn render(framebuffer: &mut Framebuffer, uniforms: &Uniforms, vertex_array: &[Vertex], planet_shader: &PlanetShader) {
+    
+    // Vertex Shader Stage:
+    // Transforma cada vértice utilizando las matrices de transformación y proyecta a coordenadas de la cámara.
     let mut transformed_vertices = Vec::with_capacity(vertex_array.len());
     for vertex in vertex_array {
         let transformed = vertex_shader(vertex, uniforms);
         transformed_vertices.push(transformed);
     }
 
+    // Primitive Assembly Stage:
+    // Agrupa los vértices transformados en triángulos. Cada grupo de tres vértices se convierte en un triángulo.
     let mut triangles = Vec::new();
     for i in (0..transformed_vertices.len()).step_by(3) {
         if i + 2 < transformed_vertices.len() {
@@ -108,15 +113,21 @@ fn render(framebuffer: &mut Framebuffer, uniforms: &Uniforms, vertex_array: &[Ve
         }
     }
 
+    // Rasterization Stage:
+    // Convierte los triángulos en fragmentos (píxeles de la pantalla) que serán procesados individualmente.
     let mut fragments = Vec::new();
     for tri in &triangles {
         fragments.extend(triangle(&tri[0], &tri[1], &tri[2]));
     }
 
+    // Fragment Processing Stage:
+    // Aplica el shader seleccionado a cada fragmento para determinar el color final del pixel.
+    // Este shader se selecciona según el tipo de planeta u objeto (por ejemplo, `PlanetShader::Rocky` para un planeta rocoso).
     for fragment in fragments {
         let x = fragment.position.x as usize;
         let y = fragment.position.y as usize;
         if x < framebuffer.width && y < framebuffer.height {
+            // Selección del shader según el planeta u objeto.
             let shaded_color = match planet_shader {
                 PlanetShader::Rocky => rocky_planet_shader(&fragment, uniforms),
                 PlanetShader::Gaseous => gaseous_planet_shader(&fragment, uniforms),
@@ -130,6 +141,7 @@ fn render(framebuffer: &mut Framebuffer, uniforms: &Uniforms, vertex_array: &[Ve
         }
     }
 }
+
 
 fn main() {
     let window_width = 1000;
