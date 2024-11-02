@@ -148,7 +148,7 @@ fn render(framebuffer: &mut Framebuffer, uniforms: &Uniforms, vertex_array: &[Ve
             // Si hay un color de emisión, envíalo al buffer de emisión
             if let Some(emission) = emission_color {
                 framebuffer.set_emission_color(x, y, emission.to_hex());
-                framebuffer.point_emission(x, y, fragment.depth);
+                // framebuffer.point_emission(x, y, fragment.depth);
             }
         }
     }
@@ -186,7 +186,9 @@ fn main() {
     // Inicializa la cámara en función del modelo actual
     let mut camera = initialize_camera(&current_model);
 
-    let mut emission_intensity = 100.0;
+    // Inicializar el nivel de emision
+    let mut emission_intensity = 0.01;
+
     while window.is_open() {
         if window.is_key_down(Key::Escape) {
             break;
@@ -227,6 +229,9 @@ fn main() {
 
         framebuffer.set_current_color(0xFFDDDD);
         render(&mut framebuffer, &uniforms, &vertex_array, &current_planet_shader);
+
+        // Aplicación de emisión como post-procesamiento
+        framebuffer.apply_emission();
 
         window
             .update_with_buffer(&framebuffer.buffer, framebuffer_width, framebuffer_height)
