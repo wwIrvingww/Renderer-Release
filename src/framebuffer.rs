@@ -6,6 +6,7 @@ pub struct Framebuffer {
     pub height: usize,
     pub buffer: Vec<u32>,
     pub zbuffer: Vec<f32>,
+    pub emission_buffer: Vec<u32>, // Nuevo buffer para el color de emisión
     background_color: u32,
     current_color: u32,
 }
@@ -17,6 +18,7 @@ impl Framebuffer {
             height,
             buffer: vec![0; width * height],
             zbuffer: vec![f32::INFINITY; width * height],
+            emission_buffer: vec![0; width * height], // Inicialización del buffer de emisión
             background_color: 0x000000,
             current_color: 0xFFFFFF,
         }
@@ -28,6 +30,9 @@ impl Framebuffer {
         }
         for depth in self.zbuffer.iter_mut() {
             *depth = f32::INFINITY;
+        }
+        for emission in self.emission_buffer.iter_mut() { // Limpiar el buffer de emisión
+            *emission = 0;
         }
     }
 
@@ -48,4 +53,23 @@ impl Framebuffer {
     pub fn set_current_color(&mut self, color: u32) {
         self.current_color = color;
     }
+
+    // Establece el color de emisión en el buffer de emisión
+    pub fn set_emission_color(&mut self, x: usize, y: usize, color: u32) {
+        if x < self.width && y < self.height {
+            let index = y * self.width + x;
+            self.emission_buffer[index] = color;
+        }
+    }
+
+    pub fn point_emission(&mut self, x: usize, y: usize, depth: f32) {
+        if x < self.width && y < self.height {
+            let index = y * self.width + x;
+            if self.zbuffer[index] > depth {
+                self.emission_buffer[index] = self.current_color;
+                self.zbuffer[index] = depth;
+            }
+        }
+    }
+    
 }

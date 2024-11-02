@@ -24,7 +24,8 @@ use planets_shader::{rocky_planet_shader,
                     frozen_planet_shader, 
                     earth_planet_shader, 
                     oceanic_planet_shader,
-                    ufo_shader};  
+                    ufo_shader,
+                    gargantua_shader,};  
 use camera::Camera;
 use fastnoise_lite::{FastNoiseLite, NoiseType, FractalType};
 
@@ -37,6 +38,7 @@ pub struct Uniforms<'a> {
     normal_matrix: Mat3,
     time: u32,
     noise: &'a FastNoiseLite,
+    emission_intensity: f32,  // Escala de emisión global
 }
 
 enum PlanetShader {
@@ -45,7 +47,8 @@ enum PlanetShader {
     Frozen,
     Earth,
     Oceanic,
-    Ufo
+    Ufo,
+    Gargantua,
 }
 
 enum CurrentModel {
@@ -120,26 +123,36 @@ fn render(framebuffer: &mut Framebuffer, uniforms: &Uniforms, vertex_array: &[Ve
         fragments.extend(triangle(&tri[0], &tri[1], &tri[2]));
     }
 
-    // Fragment Processing Stage:
     // Aplica el shader seleccionado a cada fragmento para determinar el color final del pixel.
     // Este shader se selecciona según el tipo de planeta u objeto (por ejemplo, `PlanetShader::Rocky` para un planeta rocoso).
+    // Fragment Processing Stage:
     for fragment in fragments {
         let x = fragment.position.x as usize;
         let y = fragment.position.y as usize;
         if x < framebuffer.width && y < framebuffer.height {
             // Selección del shader según el planeta u objeto.
-            let shaded_color = match planet_shader {
-                PlanetShader::Rocky => rocky_planet_shader(&fragment, uniforms),
-                PlanetShader::Gaseous => gaseous_planet_shader(&fragment, uniforms),
-                PlanetShader::Frozen => frozen_planet_shader(&fragment, uniforms),
-                PlanetShader::Earth => earth_planet_shader(&fragment, uniforms),
-                PlanetShader::Oceanic => oceanic_planet_shader(&fragment, uniforms),
-                PlanetShader::Ufo => ufo_shader(&fragment, uniforms),
+            let (shaded_color, emission_color) = match planet_shader {
+                PlanetShader::Rocky => (rocky_planet_shader(&fragment, uniforms), None),
+                PlanetShader::Gaseous => (gaseous_planet_shader(&fragment, uniforms), None),
+                PlanetShader::Frozen => (frozen_planet_shader(&fragment, uniforms), None),
+                PlanetShader::Earth => (earth_planet_shader(&fragment, uniforms), None),
+                PlanetShader::Oceanic => (oceanic_planet_shader(&fragment, uniforms), None),
+                PlanetShader::Ufo => (ufo_shader(&fragment, uniforms), None),  
+                PlanetShader::Gargantua => gargantua_shader(&fragment, uniforms),
             };
+            
+            // Establece el color en el buffer de color principal
             framebuffer.set_current_color(shaded_color.to_hex());
             framebuffer.point(x, y, fragment.depth);
+            
+            // Si hay un color de emisión, envíalo al buffer de emisión
+            if let Some(emission) = emission_color {
+                framebuffer.set_emission_color(x, y, emission.to_hex());
+                framebuffer.point_emission(x, y, fragment.depth);
+            }
         }
     }
+    
 }
 
 
@@ -173,6 +186,7 @@ fn main() {
     // Inicializa la cámara en función del modelo actual
     let mut camera = initialize_camera(&current_model);
 
+    let mut emission_intensity = 100.0;
     while window.is_open() {
         if window.is_key_down(Key::Escape) {
             break;
@@ -202,6 +216,8 @@ fn main() {
             normal_matrix,
             time: time_counter,
             noise: &noise,
+            emission_intensity: emission_intensity,  // Escala de emisión global
+            
         };
 
         let vertex_array = match current_model {
@@ -250,6 +266,11 @@ fn handle_key_input(window: &Window, current_shader: &mut PlanetShader, current_
     if window.is_key_down(Key::Key6) {
         *current_shader = PlanetShader::Ufo;
         *current_model = CurrentModel::Ufo; // Cambiar al modelo UFO
+        *camera = initialize_camera(current_model); // Reinicializar la cámara
+    }
+    if window.is_key_down(Key::Key7) {
+        *current_shader = PlanetShader::Gargantua;
+        *current_model = CurrentModel::Sphere; // Volver al modelo Sphere
         *camera = initialize_camera(current_model); // Reinicializar la cámara
     }
 }

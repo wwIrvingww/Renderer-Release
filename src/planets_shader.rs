@@ -294,3 +294,18 @@ pub fn ufo_shader(fragment: &Fragment, uniforms: &Uniforms) -> Color {
     depth_based_fragment_shader(fragment, aura_effect)
 }
 
+/// Séptimmo shader: black hole
+/// Shader emisivo para representar el material de "Gargantua" con emisión.
+pub fn gargantua_shader(fragment: &Fragment, uniforms: &Uniforms) -> (Color, Option<Color>) {
+    let base_color = Color::new(0, 0, 0); // Color oscuro base
+    let emission_color = Color::new(255, 255, 255); // Color de emisión
+
+    let time_based_emission = ((uniforms.time as f32 * 0.1).sin() * 0.5 + 0.5) * 0.8;
+    let distance_attenuation = 1.0 / (1.0 + fragment.vertex_position.norm() * 0.5);
+
+    let emissive_output = emission_color * time_based_emission * uniforms.emission_intensity * distance_attenuation;
+    (base_color, Some(emissive_output))
+}
+
+
+
