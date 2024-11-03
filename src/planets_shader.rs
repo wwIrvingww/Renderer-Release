@@ -296,16 +296,15 @@ pub fn ufo_shader(fragment: &Fragment, uniforms: &Uniforms) -> Color {
 
 /// Séptimmo shader: black hole
 /// Shader emisivo para representar el material de "Gargantua" con emisión.
-pub fn gargantua_shader(fragment: &Fragment, uniforms: &Uniforms) -> (Color, Option<Color>) {
+pub fn gargantua1_shader(fragment: &Fragment, uniforms: &Uniforms) -> (Color, Option<Color>) {
     // Colores base para el disco de acreción y el horizonte de eventos
     let event_horizon_color = Color::new(0, 0, 0);               // Horizonte oscuro
-    let inner_accretion_color = Color::new(255, 69, 0);          // Naranja intenso
-    let outer_accretion_color = Color::new(255, 140, 0);         // Bronce para la emisión en el borde
-    
+    let disk_color = Color::new(255, 120, 60);                   // Naranja/bronce homogéneo para todo el disco
+
     // Propiedades del agujero negro
-    let event_horizon_radius = 0.3;
+    let event_horizon_radius = 0.6;
     let disk_inner_radius = 0.35;
-    let disk_outer_radius = 1.0;
+    let disk_outer_radius = 1.5;
 
     // Posición y distancia del fragmento respecto al centro del agujero negro
     let position = fragment.vertex_position;
@@ -314,38 +313,65 @@ pub fn gargantua_shader(fragment: &Fragment, uniforms: &Uniforms) -> (Color, Opt
     // Determinar si el fragmento está en el disco de acreción
     let in_accretion_disk = distance_from_center > disk_inner_radius && distance_from_center < disk_outer_radius;
 
-    // Efecto de rotación continua en el disco de acreción usando un ángulo de fase basado en el tiempo
-    let time = uniforms.time as f32 * 0.2;  // Controla la velocidad de rotación del disco
-    let phase_angle = time % (2.0 * std::f32::consts::PI);
+    // Variación de intensidad para el efecto de palpitación
+    let pulse_intensity = ((uniforms.time as f32 * 0.3).sin() * 0.5 + 0.5) * 1.5; // Control de amplitud y frecuencia
 
-    let mut disk_color = event_horizon_color; // Color base
+    let mut final_disk_color = event_horizon_color; // Color base
 
-    // Lente gravitacional y disco de acreción
     if in_accretion_disk {
-        // Intensidad de la distorsión gravitacional (efecto de curva alrededor del horizonte)
-        let distortion = ((distance_from_center - disk_inner_radius) / (disk_outer_radius - disk_inner_radius)).powf(0.5);
-
-        // Colores del disco con variación según la densidad de gases
-        disk_color = inner_accretion_color.lerp(&outer_accretion_color, distortion);
-
-        // Efecto de movimiento continuo en el disco de acreción en el plano X-Y
-        let rotation_x = phase_angle.cos() * position.x - phase_angle.sin() * position.y;
-        let rotation_y = phase_angle.sin() * position.x + phase_angle.cos() * position.y;
-        let rotation_position = Vec2::new(rotation_x, rotation_y);
+        final_disk_color = disk_color * pulse_intensity; // Multiplicar el color base por la intensidad de pulso
 
         // Variación de intensidad basada en la distancia al horizonte de eventos
-        let brightness = (1.0 / (1.0 + (rotation_position.norm() - event_horizon_radius) * 10.0)).clamp(0.0, 1.0);
-        disk_color = disk_color * brightness;
+        let brightness = (1.0 / (1.0 + (distance_from_center - event_horizon_radius) * 10.0)).clamp(1.0, 2.0);
+        final_disk_color = final_disk_color * brightness;
     }
 
-    // Emisión constante en el disco de acreción, evitando el parpadeo
-    let emissive_output = disk_color * uniforms.emission_intensity;
+    // Emisión constante en el disco de acreción
+    let emissive_output = final_disk_color * uniforms.emission_intensity;
 
     // Interpolación final con el color base del disco de acreción
-    let final_color = disk_color.lerp(&emissive_output, 0.7);
+    let final_color = final_disk_color.lerp(&emissive_output, 0.7);
 
     (final_color, Some(emissive_output))
 }
+
+pub fn gargantua_shader(fragment: &Fragment, uniforms: &Uniforms) -> (Color, Option<Color>) {
+    // Colores para el disco de acreción y el horizonte de eventos
+    let center_color = Color::new(0, 0, 0);               // Centro oscuro para el horizonte de eventos
+    let inner_accretion_color = Color::new(255, 120, 60); // Naranja intenso
+    let outer_accretion_color = Color::new(255, 140, 0);  // Anaranjado claro para el borde del disco
+
+    // Propiedades del agujero negro
+    let event_horizon_radius = 0.4;
+    let disk_inner_radius = 0.45;
+    let disk_outer_radius = 1.0;
+
+    // Posición y distancia del fragmento respecto al centro del agujero negro
+    let position = fragment.vertex_position;
+    let distance_from_center = position.norm();
+
+    // Color base del disco de acreción
+    let mut disk_color = center_color;
+
+    // Determinar si el fragmento está en el disco de acreción
+    if distance_from_center > disk_inner_radius && distance_from_center < disk_outer_radius {
+        // Gradación de color en el disco usando `lerp` para transiciones de color suaves
+        let distance_ratio = (distance_from_center - disk_inner_radius) / (disk_outer_radius - disk_inner_radius);
+        disk_color = inner_accretion_color.lerp(&outer_accretion_color, distance_ratio);
+
+        // Aumento de la intensidad en el borde del disco
+        let brightness = (1.0 / (1.0 + (distance_from_center - event_horizon_radius) * 10.0)).clamp(0.7, 2.0);
+        disk_color = disk_color * brightness;
+    }
+
+    // Emisión en el borde del disco de acreción
+    let emissive_output = disk_color * uniforms.emission_intensity;
+
+    (disk_color, Some(emissive_output))
+}
+
+
+
 
 
 
