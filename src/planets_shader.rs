@@ -296,10 +296,10 @@ pub fn ufo_shader(fragment: &Fragment, uniforms: &Uniforms) -> Color {
 
 /// Séptimmo shader: black hole
 /// Shader emisivo para representar el material de "Gargantua" con emisión.
-pub fn gargantua1_shader(fragment: &Fragment, uniforms: &Uniforms) -> (Color, Option<Color>) {
+pub fn gargantua_shader(fragment: &Fragment, uniforms: &Uniforms) -> (Color, Option<Color>) {
     // Colores base para el disco de acreción y el horizonte de eventos
     let event_horizon_color = Color::new(0, 0, 0);               // Horizonte oscuro
-    let disk_color = Color::new(255, 120, 60);                   // Naranja/bronce homogéneo para todo el disco
+    let disk_color = Color::new(255, 60, 248);                   // Naranja/bronce homogéneo para todo el disco
 
     // Propiedades del agujero negro
     let event_horizon_radius = 0.6;
@@ -335,7 +335,7 @@ pub fn gargantua1_shader(fragment: &Fragment, uniforms: &Uniforms) -> (Color, Op
     (final_color, Some(emissive_output))
 }
 
-pub fn gargantua_shader(fragment: &Fragment, uniforms: &Uniforms) -> (Color, Option<Color>) {
+pub fn gargantua1_shader(fragment: &Fragment, uniforms: &Uniforms) -> (Color, Option<Color>) {
     // Colores para el disco de acreción y el horizonte de eventos
     let center_color = Color::new(0, 0, 0);               // Centro oscuro para el horizonte de eventos
     let inner_accretion_color = Color::new(255, 120, 60); // Naranja intenso
@@ -371,6 +371,44 @@ pub fn gargantua_shader(fragment: &Fragment, uniforms: &Uniforms) -> (Color, Opt
 }
 
 
+pub fn wormhole_shader(fragment: &Fragment, uniforms: &Uniforms) -> (Color, Option<Color>) {
+    // Colores base para el agujero de gusano y el borde
+    let core_color = Color::new(0, 0, 0);              // Centro oscuro del agujero de gusano
+    let inner_ring_color = Color::new(100, 0, 200);    // Violeta oscuro en el borde interno
+    let outer_ring_color = Color::new(255, 100, 255);  // Rosa brillante en el borde exterior
+
+    // Radio del agujero de gusano y del borde de emisión
+    let core_radius = 0.3;
+    let ring_inner_radius = 0.35;
+    let ring_outer_radius = 1.0;
+
+    // Posición del fragmento en el espacio 2D (proyectado en el plano X-Y)
+    let position = fragment.vertex_position;
+    let distance_from_center = position.norm();
+
+    // Determinar si el fragmento está en el borde del agujero de gusano
+    let in_ring = distance_from_center > ring_inner_radius && distance_from_center < ring_outer_radius;
+
+    // Color base del fragmento (oscuro en el centro)
+    let mut ring_color = core_color;
+
+    // Gradación de color y emisión en el borde del agujero de gusano
+    if in_ring {
+        // Gradiente en el anillo usando `lerp` para un cambio suave de color
+        let distance_ratio = (distance_from_center - ring_inner_radius) / (ring_outer_radius - ring_inner_radius);
+        ring_color = inner_ring_color.lerp(&outer_ring_color, distance_ratio);
+
+        // Brillo adicional en el borde
+        let brightness = (1.0 / (1.0 + (distance_from_center - core_radius) * 15.0)).clamp(0.8, 1.2);
+        ring_color = ring_color * brightness;
+    }
+
+    // Emisión en el borde del anillo del agujero de gusano
+    let emission_intensity = uniforms.emission_intensity * 1.5; // Emisión reforzada
+    let emissive_output = ring_color * emission_intensity;
+
+    (ring_color, Some(emissive_output))
+}
 
 
 
