@@ -99,6 +99,7 @@ Para ejecutar este proyecto en modo de lanzamiento, sigue estos pasos:
 
 ### Video:
 
-![Shaders 3D Model](https://www.youtube.com/watch?v=PFDPWAGDjos)
+[Shaders 3D Model](https://www.youtube.com/watch?v=PFDPWAGDjos)
+
 
 
