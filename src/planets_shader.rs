@@ -223,51 +223,45 @@ pub fn earth_planet_shader(fragment: &Fragment, uniforms: &Uniforms) -> Color {
 /// Quinto shader de planeta: simula un planeta de agua 
 pub fn oceanic_planet_shader(fragment: &Fragment, uniforms: &Uniforms) -> Color {
     // Colores base para el océano
-    let deep_ocean_color = Color::new(0, 64, 128);     // Azul profundo
-    let shallow_ocean_color = Color::new(0, 105, 148); // Azul claro para áreas menos profundas
-    let highlight_color = Color::new(255, 255, 255);   // Blanco para reflejos de luz
+    let deep_ocean_color = Color::new(0, 40, 90);        // Azul profundo
+    let shallow_ocean_color = Color::new(0, 140, 180);   // Azul más claro para zonas menos profundas
+    let highlight_color = Color::new(255, 255, 255);     // Blanco para reflejos
 
-    // Configuración de ruido para simular ondas y patrones de flujo
+    // Configuración de ruido para simular ondas en el océano
     let mut wave_noise = FastNoiseLite::new();
     wave_noise.set_noise_type(Some(NoiseType::Perlin));
-    wave_noise.set_frequency(Some(0.1));               // Frecuencia media para variación de ondas
+    wave_noise.set_frequency(Some(0.08));                // Frecuencia para ondas suaves
 
     let mut large_wave_noise = FastNoiseLite::new();
     large_wave_noise.set_noise_type(Some(NoiseType::OpenSimplex2));
-    large_wave_noise.set_frequency(Some(0.02));        // Frecuencia baja para ondas amplias
+    large_wave_noise.set_frequency(Some(0.02));          // Ondas amplias para simular el flujo del agua
 
-    let mut swirl_noise = FastNoiseLite::new();
-    swirl_noise.set_noise_type(Some(NoiseType::Cellular));
-    swirl_noise.set_frequency(Some(0.05));             // Frecuencia para remolinos
-
-    // Movimiento animado de las ondas con desplazamiento por tiempo
-    let time_factor = uniforms.time as f32 * 0.1;
+    // Animación para dar movimiento a las ondas
+    let time_factor = uniforms.time as f32 * 0.2;
     let wave_value = wave_noise.get_noise_2d(fragment.position.x + time_factor, fragment.position.y);
     let large_wave_value = large_wave_noise.get_noise_2d(fragment.position.x, fragment.position.y + time_factor);
-    let swirl_value = swirl_noise.get_noise_2d(fragment.position.x + time_factor * 0.5, fragment.position.y);
 
-    // Combinar valores de ruido para ondas dinámicas y patrones de flujo
-    let ocean_wave_color = deep_ocean_color.lerp(&shallow_ocean_color, (wave_value * 0.3 + large_wave_value * 0.7).abs());
-    let ocean_with_swirl = ocean_wave_color.lerp(&highlight_color, swirl_value.abs() * 0.2);
+    // Colores de ondas, combinando profundidad y movimiento de agua
+    let ocean_wave_color = deep_ocean_color.lerp(&shallow_ocean_color, (wave_value * 0.4 + large_wave_value * 0.6).abs());
 
-    // Reflejos suaves y destellos de luz en la superficie
+    // Especularidad para reflejos de luz
     let light_dir = Vec3::new(1.0, 1.0, -0.5).normalize();
-    let view_dir = fragment.normal.normalize();
     let reflect_dir = 2.0 * fragment.normal.dot(&light_dir) * fragment.normal - light_dir;
-    let spec_intensity = reflect_dir.dot(&view_dir).max(0.0).powf(50.0); // Ajuste de intensidad especular
+    let specular_intensity = reflect_dir.dot(&fragment.normal).max(0.0).powf(25.0);
 
-    let specular_highlight = ocean_with_swirl.blend_add(&highlight_color) * spec_intensity;
+    let specular_highlight = highlight_color * specular_intensity;
 
-    // Ajustar la transparencia para áreas menos profundas
-    let depth_factor = ((fragment.position.norm() + 1.0) / 2.0).clamp(0.0, 1.0);
-    let refracted_color = ocean_with_swirl.lerp(&highlight_color, depth_factor * 0.15);
+    // Ajuste de profundidad para cambiar el color en función de la posición del fragmento
+    let depth_factor = ((fragment.position.norm() + 0.5) / 2.0).clamp(0.0, 1.0);
+    let depth_adjusted_color = ocean_wave_color.lerp(&highlight_color, depth_factor * 0.1);
 
-    // Combinación final con reflejos especulares y efectos de transparencia
-    let final_color = refracted_color.blend_overlay(&specular_highlight);
+    // Combinación final del color del océano con reflejos
+    let final_color = depth_adjusted_color.blend_add(&specular_highlight);
 
-    // Aplicar sombreado basado en profundidad para mayor realismo en la superficie
+    // Aplicar sombreado basado en profundidad para realismo
     depth_based_fragment_shader(fragment, final_color)
 }
+
 
 
 /// Sexto shader: UFO
@@ -441,7 +435,7 @@ pub fn wormhole_shader(fragment: &Fragment, uniforms: &Uniforms) -> (Color, Opti
     let distance_from_center = position.norm();
 
     // Ángulo de rotación basado en el tiempo para la animación continua de la cruz
-    let time = uniforms.time as f32 * 0.05; // Controla la velocidad de rotación
+    let time = uniforms.time as f32 * 0.5; // Controla la velocidad de rotación
     let cos_angle = time.cos();
     let sin_angle = time.sin();
 
