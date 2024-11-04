@@ -97,8 +97,8 @@ Para ejecutar este proyecto en modo de lanzamiento, sigue estos pasos:
 - `minifb`: Para la gestión de ventanas y gráficos.
 - Otros módulos internos para manejar el framebuffer, shader, y procesamiento de vértices.
 
-### Imagen
+### Video:
 
-![Spaceship 3D Model](shaders.gif)
+![Shaders 3D Model](https://www.youtube.com/watch?v=PFDPWAGDjos)
 
 
