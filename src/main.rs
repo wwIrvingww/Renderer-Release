@@ -59,6 +59,23 @@ enum CurrentModel {
     Eye,
 }
 
+fn blend_screen(base: u32, emission: u32) -> u32 {
+    let base_r = (base >> 16) & 0xFF;
+    let base_g = (base >> 8) & 0xFF;
+    let base_b = base & 0xFF;
+
+    let emission_r = (emission >> 16) & 0xFF;
+    let emission_g = (emission >> 8) & 0xFF;
+    let emission_b = emission & 0xFF;
+
+    let screen_r = 255 - (((255 - base_r) * (255 - emission_r)) / 255);
+    let screen_g = 255 - (((255 - base_g) * (255 - emission_g)) / 255);
+    let screen_b = 255 - (((255 - base_b) * (255 - emission_b)) / 255);
+
+    (screen_r << 16) | (screen_g << 8) | screen_b
+}
+
+
 // Inicializa la cámara en función del modelo seleccionado
 fn initialize_camera(model: &CurrentModel) -> Camera {
     match model {
@@ -135,30 +152,37 @@ fn render(framebuffer: &mut Framebuffer, uniforms: &Uniforms, vertex_array: &[Ve
         let x = fragment.position.x as usize;
         let y = fragment.position.y as usize;
         if x < framebuffer.width && y < framebuffer.height {
-            // Selección del shader según el planeta u objeto.
             let (shaded_color, emission_color) = match planet_shader {
                 PlanetShader::Rocky => (rocky_planet_shader(&fragment, uniforms), None),
                 PlanetShader::Gaseous => (gaseous_planet_shader(&fragment, uniforms), None),
                 PlanetShader::Frozen => (frozen_planet_shader(&fragment, uniforms), None),
                 PlanetShader::Earth => (earth_planet_shader(&fragment, uniforms), None),
                 PlanetShader::Oceanic => (oceanic_planet_shader(&fragment, uniforms), None),
-                PlanetShader::Ufo => (ufo_shader(&fragment, uniforms), None),  
+                PlanetShader::Ufo => (ufo_shader(&fragment, uniforms), None),
                 PlanetShader::Gargantua => gargantua_shader(&fragment, uniforms),
                 PlanetShader::Wormhole => wormhole_shader(&fragment, uniforms),
-
             };
-            
-            // Establece el color en el buffer de color principal
+    
             framebuffer.set_current_color(shaded_color.to_hex());
             framebuffer.point(x, y, fragment.depth);
-            
-            // Si hay un color de emisión, envíalo al buffer de emisión
+    
             if let Some(emission) = emission_color {
                 framebuffer.set_emission_color(x, y, emission.to_hex());
-                // framebuffer.point_emission(x, y, fragment.depth);
             }
         }
     }
+    
+    // Segunda pasada: Combinar el buffer de emisión en el buffer principal
+    for y in 0..framebuffer.height {
+        for x in 0..framebuffer.width {
+            let emission_color = framebuffer.emission_buffer[y * framebuffer.width + x];
+            let current_color = framebuffer.buffer[y * framebuffer.width + x];
+    
+            // Mezclamos los colores con el buffer de emisión usando un modo de mezcla (screen blending)
+            framebuffer.buffer[y * framebuffer.width + x] = blend_screen(current_color, emission_color);
+        }
+    }
+    
     
 }
 
