@@ -372,15 +372,19 @@ pub fn gargantua1_shader(fragment: &Fragment, uniforms: &Uniforms) -> (Color, Op
 
 
 pub fn wormhole_shader(fragment: &Fragment, uniforms: &Uniforms) -> (Color, Option<Color>) {
-    // Colores base para el agujero de gusano y el borde
-    let core_color = Color::new(0, 0, 0);              // Centro oscuro del agujero de gusano
-    let inner_ring_color = Color::new(100, 0, 200);    // Violeta oscuro en el borde interno
-    let outer_ring_color = Color::new(255, 100, 255);  // Rosa brillante en el borde exterior
+    // Colores base para el agujero de gusano
+    let core_color = Color::new(0, 0, 0);                // Centro oscuro del agujero de gusano
+    let inner_ring_color = Color::new(100, 0, 200);      // Violeta oscuro en el borde interno
+    let outer_ring_color = Color::new(255, 100, 255);    // Rosa brillante en el borde exterior
 
     // Radio del agujero de gusano y del borde de emisión
-    let core_radius = 0.3;
-    let ring_inner_radius = 0.35;
-    let ring_outer_radius = 1.0;
+    let core_radius = 0.01; //0.3
+    let ring_inner_radius = 0.15; //0.35
+    let ring_outer_radius = 0.5; // 1.0
+
+    // Parámetros para el anillo horizontal que cruza el centro
+    let horizontal_ring_inner_radius = 0.0; // Anillo inicia desde el centro
+    let horizontal_ring_outer_radius = 0.5;
 
     // Posición del fragmento en el espacio 2D (proyectado en el plano X-Y)
     let position = fragment.vertex_position;
@@ -399,18 +403,29 @@ pub fn wormhole_shader(fragment: &Fragment, uniforms: &Uniforms) -> (Color, Opti
         ring_color = inner_ring_color.lerp(&outer_ring_color, distance_ratio);
 
         // Brillo adicional en el borde
-        let brightness = (1.0 / (1.0 + (distance_from_center - core_radius) * 15.0)).clamp(0.8, 1.2);
+        let brightness = (1.0 / (1.0 + (distance_from_center - core_radius) * 0.0)).clamp(0.0, 0.0);
         ring_color = ring_color * brightness;
     }
 
+    // Agregar el anillo horizontal simétrico que cruza el núcleo del agujero de gusano
+    let y_position = fragment.vertex_position.y.abs(); // Posición en el eje Y (simétrico)
+    let in_horizontal_ring = y_position < horizontal_ring_outer_radius && distance_from_center < ring_outer_radius;
+
+    if in_horizontal_ring {
+        // Color de degradado para el anillo horizontal simétrico
+        let distance_ratio = y_position / horizontal_ring_outer_radius;
+        let horizontal_ring_color = inner_ring_color.lerp(&outer_ring_color, distance_ratio);
+
+        let adjusted_brightness = 1.3; // Aumenta el brillo del anillo (2.3)
+        ring_color = ring_color.lerp(&horizontal_ring_color, 0.7) * adjusted_brightness;
+    }
+
     // Emisión en el borde del anillo del agujero de gusano
-    let emission_intensity = uniforms.emission_intensity * 1.5; // Emisión reforzada
+    let emission_intensity = uniforms.emission_intensity * 1.5; // Emisión reforzada (1.5)
     let emissive_output = ring_color * emission_intensity;
 
     (ring_color, Some(emissive_output))
 }
-
-
 
 
 

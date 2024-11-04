@@ -25,7 +25,8 @@ use planets_shader::{rocky_planet_shader,
                     earth_planet_shader, 
                     oceanic_planet_shader,
                     ufo_shader,
-                    gargantua_shader,};  
+                    gargantua_shader,
+                    wormhole_shader};  
 use camera::Camera;
 use fastnoise_lite::{FastNoiseLite, NoiseType, FractalType};
 
@@ -49,11 +50,13 @@ enum PlanetShader {
     Oceanic,
     Ufo,
     Gargantua,
+    Wormhole
 }
 
 enum CurrentModel {
     Sphere,
     Ufo,
+    Eye,
 }
 
 // Inicializa la cámara en función del modelo seleccionado
@@ -61,6 +64,8 @@ fn initialize_camera(model: &CurrentModel) -> Camera {
     match model {
         CurrentModel::Sphere => Camera::new(Vec3::new(0.0, 0.0, 5.0), Vec3::new(0.0, 0.0, 0.0), Vec3::new(0.0, 1.0, 0.0)),
         CurrentModel::Ufo => Camera::new(Vec3::new(0.0, 0.0, 35.0), Vec3::new(0.0, 0.0, 0.0), Vec3::new(0.0, 1.0, 0.0)),
+        CurrentModel::Eye => Camera::new(Vec3::new(0.0, 0.0, 15.0), Vec3::new(0.0, 0.0, 0.0), Vec3::new(0.0, 1.0, 0.0)),
+
     }
 }
 
@@ -139,6 +144,8 @@ fn render(framebuffer: &mut Framebuffer, uniforms: &Uniforms, vertex_array: &[Ve
                 PlanetShader::Oceanic => (oceanic_planet_shader(&fragment, uniforms), None),
                 PlanetShader::Ufo => (ufo_shader(&fragment, uniforms), None),  
                 PlanetShader::Gargantua => gargantua_shader(&fragment, uniforms),
+                PlanetShader::Wormhole => wormhole_shader(&fragment, uniforms),
+
             };
             
             // Establece el color en el buffer de color principal
@@ -178,6 +185,8 @@ fn main() {
 
     let sphere_obj = Obj::load("src/assets/sphere.obj").expect("Failed to load sphere.obj");
     let ufo_obj = Obj::load("src/assets/ufo.obj").expect("Failed to load ufo.obj");
+    let eye_obj = Obj::load("src/assets/eye.obj").expect("Failed to load sphere.obj");
+
 
     let mut time_counter = 0;
     let mut current_planet_shader = PlanetShader::Rocky;
@@ -187,7 +196,7 @@ fn main() {
     let mut camera = initialize_camera(&current_model);
 
     // Inicializar el nivel de emision
-    let mut emission_intensity = 0.01;
+    let mut emission_intensity = 1.00;
 
     while window.is_open() {
         if window.is_key_down(Key::Escape) {
@@ -225,6 +234,7 @@ fn main() {
         let vertex_array = match current_model {
             CurrentModel::Sphere => sphere_obj.get_vertex_array(),
             CurrentModel::Ufo => ufo_obj.get_vertex_array(),
+            CurrentModel::Eye => eye_obj.get_vertex_array(),
         };
 
         framebuffer.set_current_color(0xFFDDDD);
@@ -275,9 +285,15 @@ fn handle_key_input(window: &Window, current_shader: &mut PlanetShader, current_
     }
     if window.is_key_down(Key::Key7) {
         *current_shader = PlanetShader::Gargantua;
+        *current_model = CurrentModel::Eye; // Volver al modelo Sphere
+        *camera = initialize_camera(current_model); // Reinicializar la cámara
+    }
+    if window.is_key_down(Key::Key8) {
+        *current_shader = PlanetShader::Wormhole;
         *current_model = CurrentModel::Sphere; // Volver al modelo Sphere
         *camera = initialize_camera(current_model); // Reinicializar la cámara
     }
+
 }
 
 
