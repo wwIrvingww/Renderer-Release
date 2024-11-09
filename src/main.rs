@@ -13,7 +13,9 @@ mod fragment;
 mod shader;
 mod camera;
 mod planets_shader;
+mod texture;
 
+use texture::{init_texture, with_texture};
 use framebuffer::Framebuffer;
 use vertex::Vertex;
 use obj::Obj;
@@ -210,6 +212,9 @@ fn main() {
     let sphere_obj = Obj::load("src/assets/sphere.obj").expect("Failed to load sphere.obj");
     let ufo_obj = Obj::load("src/assets/ufo.obj").expect("Failed to load ufo.obj");
     let eye_obj = Obj::load("src/assets/eye.obj").expect("Failed to load sphere.obj");
+    // Inicializar la textura
+    init_texture("src/assets/textures/water.png").expect("Failed to initialize texture");
+
 
 
     let mut time_counter = 0;
