@@ -2,9 +2,11 @@ use crate::color::Color;
 use crate::fragment::Fragment;
 use crate::Uniforms;
 use crate::shader::{depth_based_fragment_shader, noise_based_fragment_shader, moving_clouds_shader, ocean_currents_shader};
-use nalgebra_glm::{Vec3, Vec2, vec2};
+use nalgebra_glm::{Vec3, Vec2, vec2, dot};
 use fastnoise_lite::{FastNoiseLite, NoiseType};
 use crate::texture::{init_texture, with_texture};
+use crate::normal_map::{init_normal_map, with_normal_map};
+
 
 
 /// Primer shader de planeta: simula un planeta rocoso con textura granular
@@ -264,17 +266,26 @@ pub fn oceanic_planet_shader1(fragment: &Fragment, uniforms: &Uniforms) -> Color
 }
 
 pub fn oceanic_planet_shader(fragment: &Fragment, _uniforms: &Uniforms) -> Color {
-    with_texture(|texture| {
-        let tex_coords = if fragment.tex_coords.x.is_nan() || fragment.tex_coords.y.is_nan() {
-            vec2(0.0, 0.0) // Valores por defecto si las coordenadas son inválidas
-        } else {
-            fragment.tex_coords
-        };
+    // Obtener el color base de la textura
+    let base_color = with_texture(|texture| {
+        texture.sample(fragment.tex_coords.x, fragment.tex_coords.y)
+    });
 
-        texture.sample(tex_coords.x, tex_coords.y)
-    })
+    // Obtener la normal del mapa normal y convertirla a espacio de mundo
+    let normal_from_map = with_normal_map(|normal_map| {
+        normal_map.sample(fragment.tex_coords.x, fragment.tex_coords.y)
+    });
+
+    // Modificar la normal del fragmento usando el mapa normal
+    let modified_normal = (fragment.normal + normal_from_map).normalize();
+
+    // Calcular la iluminación con la nueva normal
+    let light_dir = Vec3::new(0.0, 0.0, 1.0);
+    let intensity = dot(&modified_normal, &light_dir).max(0.0);
+
+    // Aplicar la intensidad al color base
+    base_color * intensity
 }
-
 
 
 /// Sexto shader: UFO

@@ -14,7 +14,9 @@ mod shader;
 mod camera;
 mod planets_shader;
 mod texture;
+mod normal_map;
 
+use normal_map::{init_normal_map, with_normal_map};
 use texture::{init_texture, with_texture};
 use framebuffer::Framebuffer;
 use vertex::Vertex;
@@ -213,8 +215,12 @@ fn main() {
     let sphere_obj = Obj::load("src/assets/sphere.obj").expect("Failed to load sphere.obj");
     let ufo_obj = Obj::load("src/assets/ufo.obj").expect("Failed to load ufo.obj");
     let eye_obj = Obj::load("src/assets/eye.obj").expect("Failed to load sphere.obj");
+
     // Inicializar la textura
     init_texture("src/assets/textures/water.png").expect("Failed to initialize texture");
+
+    // Inicializar el mapa normal
+    init_normal_map("src/assets/textures/water.png").expect("Failed to load normal map");
 
 
 
