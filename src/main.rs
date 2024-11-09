@@ -164,6 +164,7 @@ fn render(framebuffer: &mut Framebuffer, uniforms: &Uniforms, vertex_array: &[Ve
                 PlanetShader::Gargantua => gargantua_shader(&fragment, uniforms),
                 PlanetShader::Wormhole => wormhole_shader(&fragment, uniforms),
             };
+            
     
             framebuffer.set_current_color(shaded_color.to_hex());
             framebuffer.point(x, y, fragment.depth);
@@ -304,7 +305,7 @@ fn handle_key_input(window: &Window, current_shader: &mut PlanetShader, current_
     }
     if window.is_key_down(Key::Key5) {
         *current_shader = PlanetShader::Oceanic;
-        *current_model = CurrentModel::Sphere; // Volver al modelo Sphere
+        *current_model = CurrentModel::Eye; // Volver al modelo Sphere
         *camera = initialize_camera(current_model); // Reinicializar la cámara
     }
     if window.is_key_down(Key::Key6) {
