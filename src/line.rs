@@ -23,14 +23,32 @@ pub fn line(a: &Vertex, b: &Vertex) -> Vec<Fragment> {
     let mut err = if dx > dy { dx / 2 } else { -dy / 2 };
 
     loop {
-        let z = start.z + (end.z - start.z) * (x0 - start.x as i32) as f32 / (end.x - start.x) as f32;
+        let t = if dx > dy {
+            (x0 - start.x as i32) as f32 / (x1 - start.x as i32) as f32
+        } else {
+            (y0 - start.y as i32) as f32 / (y1 - start.y as i32) as f32
+        };
 
-        // Añadimos un valor de normal predeterminado y una intensidad de luz (1.0 por defecto)
+        let z = start.z + (end.z - start.z) * t;
+        let tex_coords = a.tex_coords + (b.tex_coords - a.tex_coords) * t;
+
+        // Normal y color predeterminados
         let default_normal = Vec3::new(0.0, 0.0, 1.0);
         let intensity = 1.0;
-        fragments.push(Fragment::new(x0 as f32, y0 as f32, Color::new(255, 255, 255), z, default_normal, intensity, Vec2::new(x0 as f32,y0 as f32)));
 
-        if x0 == x1 && y0 == y1 { break; }
+        fragments.push(Fragment::new(
+            Vec2::new(x0 as f32, y0 as f32),        // position
+            Color::new(255, 255, 255),             // color
+            z,                                     // depth
+            default_normal,                        // normal
+            intensity,                             // intensity
+            Vec3::new(x0 as f32, y0 as f32, z),    // vertex_position (en 3D)
+            tex_coords,                            // tex_coords
+        ));
+
+        if x0 == x1 && y0 == y1 {
+            break;
+        }
 
         let e2 = err;
         if e2 > -dx {
