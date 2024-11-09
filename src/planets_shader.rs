@@ -2,8 +2,9 @@ use crate::color::Color;
 use crate::fragment::Fragment;
 use crate::Uniforms;
 use crate::shader::{depth_based_fragment_shader, noise_based_fragment_shader, moving_clouds_shader, ocean_currents_shader};
-use nalgebra_glm::{Vec3, Vec2};
+use nalgebra_glm::{Vec3, Vec2, vec2};
 use fastnoise_lite::{FastNoiseLite, NoiseType};
+use crate::texture::{init_texture, with_texture};
 
 
 /// Primer shader de planeta: simula un planeta rocoso con textura granular
@@ -221,7 +222,7 @@ pub fn earth_planet_shader(fragment: &Fragment, uniforms: &Uniforms) -> Color {
 
 
 /// Quinto shader de planeta: simula un planeta de agua 
-pub fn oceanic_planet_shader(fragment: &Fragment, uniforms: &Uniforms) -> Color {
+pub fn oceanic_planet_shader1(fragment: &Fragment, uniforms: &Uniforms) -> Color {
     // Colores base para el océano
     let deep_ocean_color = Color::new(0, 40, 90);        // Azul profundo
     let shallow_ocean_color = Color::new(0, 140, 180);   // Azul más claro para zonas menos profundas
@@ -262,6 +263,18 @@ pub fn oceanic_planet_shader(fragment: &Fragment, uniforms: &Uniforms) -> Color 
     depth_based_fragment_shader(fragment, final_color)
 }
 
+pub fn oceanic_planet_shader(fragment: &Fragment, _uniforms: &Uniforms) -> Color {
+    with_texture(|texture| {
+        let tex_coords = if fragment.tex_coords.x.is_nan() || fragment.tex_coords.y.is_nan() {
+            vec2(0.0, 0.0) // Valores por defecto si las coordenadas son inválidas
+        } else {
+            fragment.tex_coords
+        };
+
+        texture.sample(tex_coords.x, tex_coords.y)
+    })
+}
+
 
 
 /// Sexto shader: UFO
@@ -290,7 +303,7 @@ pub fn ufo_shader(fragment: &Fragment, uniforms: &Uniforms) -> Color {
 
 /// Séptimmo shader: black hole
 /// Shader emisivo para representar el material de "Gargantua" con emisión.
-pub fn gargantua_shader(fragment: &Fragment, uniforms: &Uniforms) -> (Color, Option<Color>) {
+pub fn gargantua_shader1(fragment: &Fragment, uniforms: &Uniforms) -> (Color, Option<Color>) {
     // Colores base
     let event_horizon_color = Color::new(0, 0, 0);
     let disk_color = Color::new(255, 60, 248);
@@ -326,39 +339,18 @@ pub fn gargantua_shader(fragment: &Fragment, uniforms: &Uniforms) -> (Color, Opt
 }
 
 
-pub fn gargantua1_shader(fragment: &Fragment, uniforms: &Uniforms) -> (Color, Option<Color>) {
-    // Colores para el disco de acreción y el horizonte de eventos
-    let center_color = Color::new(0, 0, 0);               // Centro oscuro para el horizonte de eventos
-    let inner_accretion_color = Color::new(255, 120, 60); // Naranja intenso
-    let outer_accretion_color = Color::new(255, 140, 0);  // Anaranjado claro para el borde del disco
+pub fn gargantua_shader(fragment: &Fragment, uniforms: &Uniforms) -> (Color, Option<Color>) {
+    // Muestra el color de la textura usando las coordenadas UV del fragmento
+    let texture_color = with_texture(|texture| {
+        texture.sample(fragment.tex_coords.x, fragment.tex_coords.y)
+    });
 
-    // Propiedades del agujero negro
-    let event_horizon_radius = 0.4;
-    let disk_inner_radius = 0.45;
-    let disk_outer_radius = 1.0;
+    // Aplica la intensidad de emisión desde los uniforms
+    let emission_intensity = uniforms.emission_intensity;
+    let emissive_output = texture_color * emission_intensity;
 
-    // Posición y distancia del fragmento respecto al centro del agujero negro
-    let position = fragment.vertex_position;
-    let distance_from_center = position.norm();
-
-    // Color base del disco de acreción
-    let mut disk_color = center_color;
-
-    // Determinar si el fragmento está en el disco de acreción
-    if distance_from_center > disk_inner_radius && distance_from_center < disk_outer_radius {
-        // Gradación de color en el disco usando `lerp` para transiciones de color suaves
-        let distance_ratio = (distance_from_center - disk_inner_radius) / (disk_outer_radius - disk_inner_radius);
-        disk_color = inner_accretion_color.lerp(&outer_accretion_color, distance_ratio);
-
-        // Aumento de la intensidad en el borde del disco
-        let brightness = (1.0 / (1.0 + (distance_from_center - event_horizon_radius) * 10.0)).clamp(0.7, 2.0);
-        disk_color = disk_color * brightness;
-    }
-
-    // Emisión en el borde del disco de acreción
-    let emissive_output = disk_color * uniforms.emission_intensity;
-
-    (disk_color, Some(emissive_output))
+    // Devuelve el color de la textura como color base y el mismo color como emisión
+    (texture_color, Some(emissive_output))
 }
 
 
