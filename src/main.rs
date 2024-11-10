@@ -211,13 +211,13 @@ fn render(framebuffer: &mut Framebuffer, uniforms: &Uniforms, vertex_array: &[Ve
         for x in 0..framebuffer.width {
             let emission_color = framebuffer.emission_buffer[y * framebuffer.width + x];
             let current_color = framebuffer.buffer[y * framebuffer.width + x];
-    
+
             // Mezclamos los colores con el buffer de emisión usando un modo de mezcla (screen blending)
-            framebuffer.buffer[y * framebuffer.width + x] = blend_screen(current_color, emission_color);
+            if emission_color != 0 {
+                framebuffer.buffer[y * framebuffer.width + x] = blend_screen(current_color, emission_color);
+            }
         }
-    }
-    
-    
+    }   
 }
 
 
@@ -253,7 +253,7 @@ fn main() {
 
     // Inicializar el Skybox después de cargar otros recursos
     // let skybox = Skybox::new("src/assets/textures/stars.jpg");
-    let skybox = Skybox::new(500); // Genera 500 estrellas
+    let skybox = Skybox::new(100); // Genera 500 estrellas
 
     // Almacenar los arrays de vértices en variables
     let sphere_vertices = sphere_obj.get_vertex_array();
@@ -266,7 +266,7 @@ fn main() {
         vertex_array: &eye_vertices,
         shader: PlanetShader::Wormhole,
         position: Vec3::new(0.0, 0.0, 0.0), // Centro
-        scale: 2.5,
+        scale: 2.,
     },
     Model {
         vertex_array: &sphere_vertices,
