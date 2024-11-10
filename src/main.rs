@@ -95,6 +95,7 @@ fn blend_screen(base: u32, emission: u32) -> u32 {
 }
 
 
+
 // Inicializa la cámara en función del modelo seleccionado
 fn initialize_camera(model: &CurrentModel) -> Camera {
     match model {
@@ -199,10 +200,13 @@ fn render(framebuffer: &mut Framebuffer, uniforms: &Uniforms, vertex_array: &[Ve
     
             framebuffer.set_current_color(shaded_color.to_hex());
             framebuffer.point(x, y, fragment.depth);
-    
+
             if let Some(emission) = emission_color {
                 framebuffer.set_emission_color(x, y, emission.to_hex());
             }
+            //Aplicar el post-procesamiento de emisión
+            // framebuffer.apply_emission();
+
         }
     }
     
@@ -323,7 +327,7 @@ fn main() {
     let mut camera = initialize_camera(&current_model);
 
     // Inicializar el nivel de emision
-    let mut emission_intensity = 1.00;
+    let mut emission_intensity = 1.0;
 
     while window.is_open() {
         if window.is_key_down(Key::Escape) {

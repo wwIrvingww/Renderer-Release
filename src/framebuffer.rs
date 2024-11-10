@@ -79,9 +79,9 @@ impl Framebuffer {
         }
     }
 
-     // Función para aplicar el post-procesamiento de emisión
-     pub fn apply_emission(&mut self) {
-        let blur_radius = 5; // Radio de desenfoque
+    pub fn apply_emission(&mut self) {
+        let blur_radius = 2; // Reducir el radio para mejorar rendimiento
+        let emission_intensity = 0.5; // Factor de intensidad para suavizar el efecto
         let mut temp_emission_buffer = self.emission_buffer.clone();
 
         for y in 0..self.height {
@@ -89,14 +89,14 @@ impl Framebuffer {
                 let mut blended_color = 0u32;
                 let mut count = 0;
 
-                // Aplicar desenfoque en un área de radio `blur_radius` alrededor de cada píxel emisivo
+                // Aplicar desenfoque simple en un área reducida
                 for dy in -(blur_radius as i32)..=(blur_radius as i32) {
                     for dx in -(blur_radius as i32)..=(blur_radius as i32) {
                         let nx = x as i32 + dx;
                         let ny = y as i32 + dy;
                         if nx >= 0 && ny >= 0 && nx < self.width as i32 && ny < self.height as i32 {
                             let index = ny as usize * self.width + nx as usize;
-                            blended_color += self.emission_buffer[index];
+                            blended_color = blended_color.saturating_add(self.emission_buffer[index]);
                             count += 1;
                         }
                     }
@@ -106,17 +106,32 @@ impl Framebuffer {
                     blended_color /= count; // Promediar el color de emisión
                 }
 
-                // Mezclar el color de emisión en el buffer principal
+                // Mezclar con el buffer principal usando intensidad ajustada
                 let index = y * self.width + x;
-                self.buffer[index] = self.combine_colors(self.buffer[index], blended_color);
+                let emission_color = (blended_color as f32 * emission_intensity) as u32;
+                self.buffer[index] = self.combine_colors(self.buffer[index], emission_color);
             }
         }
+
+        // Limpiar el buffer de emisión para el próximo frame
+        self.emission_buffer.fill(0);
     }
 
     fn combine_colors(&self, base_color: u32, emission_color: u32) -> u32 {
-        // Combinar base y emisión para aplicar el efecto de luz
-        // Aquí puedes ajustar cómo se mezclan, tal vez utilizando el modo "additive blend"
-        base_color.saturating_add(emission_color)
+        // Mezcla aditiva con saturación para evitar sobresaturar el color
+        let base_r = (base_color >> 16) & 0xFF;
+        let base_g = (base_color >> 8) & 0xFF;
+        let base_b = base_color & 0xFF;
+
+        let emission_r = (emission_color >> 16) & 0xFF;
+        let emission_g = (emission_color >> 8) & 0xFF;
+        let emission_b = emission_color & 0xFF;
+
+        let r = (base_r + emission_r).min(255);
+        let g = (base_g + emission_g).min(255);
+        let b = (base_b + emission_b).min(255);
+
+        (r << 16) | (g << 8) | b
     }
 }
     
