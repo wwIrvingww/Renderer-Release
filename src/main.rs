@@ -137,6 +137,17 @@ fn create_model_matrix(position: Vec3, scale: f32) -> Mat4 {
 }
 
 
+fn generate_spiral_position(index: usize, base_radius: f32, height_step: f32) -> Vec3 {
+    let angle = index as f32 * 0.8 * PI; // Aumentamos el ángulo para cubrir más espacio
+    let radius = base_radius + index as f32 * 2.0; // Incremento del radio para expandir la espiral
+    let x = radius * angle.cos();
+    let z = radius * angle.sin();
+    let y = (height_step * index as f32) - 5.0; // Ajuste de altura para evitar alineación
+
+    Vec3::new(x, y, z)
+}
+
+
 fn render(framebuffer: &mut Framebuffer, uniforms: &Uniforms, vertex_array: &[Vertex], planet_shader: &PlanetShader) {
     
     // Vertex Shader Stage:
@@ -175,14 +186,14 @@ fn render(framebuffer: &mut Framebuffer, uniforms: &Uniforms, vertex_array: &[Ve
         let y = fragment.position.y as usize;
         if x < framebuffer.width && y < framebuffer.height {
             let (shaded_color, emission_color) = match planet_shader {
-                PlanetShader::Rocky => (rocky_planet_shader(&fragment, uniforms), None),
-                PlanetShader::Gaseous => (gaseous_planet_shader(&fragment, uniforms), None),
+                PlanetShader::Rocky => (rocky_planet_shader(&fragment, uniforms), None), //ya
+                PlanetShader::Gaseous => (gaseous_planet_shader(&fragment, uniforms), None), //ya
                 PlanetShader::Frozen => (frozen_planet_shader(&fragment, uniforms), None),
-                PlanetShader::Earth => (earth_planet_shader(&fragment, uniforms), None),
-                PlanetShader::Oceanic => (oceanic_planet_shader(&fragment, uniforms), None),
-                PlanetShader::Ufo => (ufo_shader(&fragment, uniforms), None),
-                PlanetShader::Gargantua => gargantua_shader(&fragment, uniforms),
-                PlanetShader::Wormhole => wormhole_shader(&fragment, uniforms),
+                PlanetShader::Earth => (earth_planet_shader(&fragment, uniforms), None), //ya
+                PlanetShader::Oceanic => (oceanic_planet_shader(&fragment, uniforms), None), //ya
+                PlanetShader::Ufo => (ufo_shader(&fragment, uniforms), None), //ya
+                PlanetShader::Gargantua => gargantua_shader(&fragment, uniforms), //ya
+                PlanetShader::Wormhole => wormhole_shader(&fragment, uniforms), //ya
             };
             
     
@@ -249,36 +260,60 @@ fn main() {
     let ufo_vertices = ufo_obj.get_vertex_array();
     let eye_vertices = eye_obj.get_vertex_array();
 
-    // Crear la lista de modelos utilizando las variables
+    // Crear la lista de modelos con las posiciones en espiral
     let models = vec![
-        Model {
-            vertex_array: &sphere_vertices,
-            shader: PlanetShader::Rocky,
-            position: Vec3::new(0.0, 0.0, 0.0), // Centro, como la estrella principal
-            scale: 1.0,
-        },
-        Model {
-            vertex_array: &sphere_vertices,
-            shader: PlanetShader::Gaseous,
-            position: Vec3::new(5.0, 0.0, -10.0), // Un planeta más alejado
-            scale: 0.8,
-        },
-        Model {
-            vertex_array: &ufo_vertices,
-            shader: PlanetShader::Ufo,
-            position: Vec3::new(-8.0, 3.0, -15.0), // Una nave en otra posición
-            scale: 1.5,
-        },
-        Model {
-            vertex_array: &eye_vertices,
-            shader: PlanetShader::Gargantua,
-            position: Vec3::new(10.0, 5.0, -20.0), // Otro objeto en el espacio
-            scale: 2.0,
-        },
+    Model {
+        vertex_array: &eye_vertices,
+        shader: PlanetShader::Wormhole,
+        position: Vec3::new(0.0, 0.0, 0.0), // Centro
+        scale: 2.5,
+    },
+    Model {
+        vertex_array: &sphere_vertices,
+        shader: PlanetShader::Rocky,
+        position: generate_spiral_position(1, 5.0, 1.0),
+        scale: 1.0,
+    },
+    Model {
+        vertex_array: &sphere_vertices,
+        shader: PlanetShader::Oceanic,
+        position: generate_spiral_position(2, 5.0, 1.0),
+        scale: 1.0,
+    },
+    Model {
+        vertex_array: &sphere_vertices,
+        shader: PlanetShader::Earth,
+        position: generate_spiral_position(3, 5.0, 1.0),
+        scale: 1.0,
+    },
+    Model {
+        vertex_array: &sphere_vertices,
+        shader: PlanetShader::Frozen,
+        position: generate_spiral_position(4, 5.0, 1.0),
+        scale: 1.2,
+    },
+    Model {
+        vertex_array: &sphere_vertices,
+        shader: PlanetShader::Gaseous,
+        position: generate_spiral_position(5, 5.0, 1.0),
+        scale: 1.8,
+    },
+    Model {
+        vertex_array: &ufo_vertices,
+        shader: PlanetShader::Ufo,
+        position: generate_spiral_position(6, 5.0, 1.0),
+        scale: 0.7,
+    },
+    Model {
+        vertex_array: &eye_vertices,
+        shader: PlanetShader::Gargantua,
+        position: generate_spiral_position(7, 5.0, 1.0),
+        scale: 2.0,
+    },
     ];
 
 
-    
+        
 
     let mut time_counter = 0;
     let mut current_planet_shader = PlanetShader::Rocky;
