@@ -78,4 +78,8 @@ impl Camera {
     self.center = self.eye + final_rotated.normalize() * radius;
     self.has_changed = true;
   }
+  
+  pub fn get_forward_vector(&self) -> Vec3 {
+    (self.center - self.eye).normalize()
+  }
 }
