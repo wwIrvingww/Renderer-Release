@@ -15,7 +15,9 @@ mod camera;
 mod planets_shader;
 mod texture;
 mod normal_map;
+mod skybox;
 
+use skybox::Skybox;
 use normal_map::{init_normal_map, with_normal_map};
 use texture::{init_texture, with_texture};
 use framebuffer::Framebuffer;
@@ -62,6 +64,7 @@ enum CurrentModel {
     Ufo,
     Eye,
 }
+
 
 fn blend_screen(base: u32, emission: u32) -> u32 {
     let base_r = (base >> 16) & 0xFF;
@@ -208,10 +211,10 @@ fn main() {
     )
     .unwrap();
 
-    framebuffer.set_background_color(0x433878);
+    framebuffer.set_background_color(0x000000);
 
     let noise = create_cracked_earth_noise();
-
+    
     let sphere_obj = Obj::load("src/assets/sphere.obj").expect("Failed to load sphere.obj");
     let ufo_obj = Obj::load("src/assets/ufo.obj").expect("Failed to load ufo.obj");
     let eye_obj = Obj::load("src/assets/eye.obj").expect("Failed to load sphere.obj");
@@ -221,6 +224,10 @@ fn main() {
 
     // Inicializar el mapa normal
     init_normal_map("src/assets/textures/water.png").expect("Failed to load normal map");
+
+    // Inicializar el Skybox después de cargar otros recursos
+    // let skybox = Skybox::new("src/assets/textures/stars.jpg");
+    let skybox = Skybox::new(500); // Genera 500 estrellas
 
 
 
@@ -238,22 +245,23 @@ fn main() {
         if window.is_key_down(Key::Escape) {
             break;
         }
-
+    
         handle_input(&window, &mut camera);
         handle_key_input(&window, &mut current_planet_shader, &mut current_model, &mut camera);
-
+                
         framebuffer.clear();
-
+    
+        // Crear uniforms antes de renderizar el skybox
         let model_matrix = create_model_matrix();
         let view_matrix = camera.get_view_matrix();
         let projection_matrix = create_projection_matrix(window_width as f32, window_height as f32);
         let viewport_matrix = create_viewport_matrix(framebuffer_width as f32, framebuffer_height as f32);
-
+    
         let transformation_matrix = projection_matrix * view_matrix * model_matrix;
         let normal_matrix = model_matrix.fixed_resize::<3, 3>(0.0).try_inverse().unwrap().transpose();
-
+    
         time_counter += 1;
-
+    
         let uniforms = Uniforms {
             model_matrix,
             view_matrix,
@@ -263,28 +271,29 @@ fn main() {
             normal_matrix,
             time: time_counter,
             noise: &noise,
-            emission_intensity: emission_intensity,  // Escala de emisión global
-            
+            emission_intensity: emission_intensity,
         };
-
-        let vertex_array = match current_model {
+    
+        // Renderizar el skybox antes de los objetos
+        skybox.render(&mut framebuffer, &uniforms, camera.eye);
+    
+        // Seleccionar el vertex array basado en el modelo actual
+        let vertex_arrays = match current_model {
             CurrentModel::Sphere => sphere_obj.get_vertex_array(),
             CurrentModel::Ufo => ufo_obj.get_vertex_array(),
             CurrentModel::Eye => eye_obj.get_vertex_array(),
         };
-
+    
         framebuffer.set_current_color(0xFFDDDD);
-        render(&mut framebuffer, &uniforms, &vertex_array, &current_planet_shader);
-
-        // Aplicación de emisión como post-procesamiento
-        framebuffer.apply_emission();
-
+        render(&mut framebuffer, &uniforms, &vertex_arrays, &current_planet_shader);
+    
         window
             .update_with_buffer(&framebuffer.buffer, framebuffer_width, framebuffer_height)
             .unwrap();
-
+    
         std::thread::sleep(frame_delay);
-    }
+    }   
+    
 }
 
 // Función para manejar la selección de shaders y modelos de planeta
