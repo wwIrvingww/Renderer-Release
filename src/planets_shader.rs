@@ -314,54 +314,65 @@ pub fn ufo_shader(fragment: &Fragment, uniforms: &Uniforms) -> Color {
 
 /// Séptimmo shader: black hole
 /// Shader emisivo para representar el material de "Gargantua" con emisión.
-pub fn gargantua_shader1(fragment: &Fragment, uniforms: &Uniforms) -> (Color, Option<Color>) {
-    // Colores base
-    let event_horizon_color = Color::new(0, 0, 0);
-    let disk_color = Color::new(255, 60, 248);
-
-    // Propiedades del agujero negro
-    let event_horizon_radius = 0.6;
-    let disk_inner_radius = 0.35;
-    let disk_outer_radius = 1.5;
-
-    // Posición del fragmento respecto al centro del objeto
-    let position = fragment.vertex_position;
-    let distance_from_center = position.norm();
-
-    // Determinación de si el fragmento está en el disco de acreción
-    let in_accretion_disk = distance_from_center > disk_inner_radius && distance_from_center < disk_outer_radius;
-
-    // Intensidad de pulso basada en `vertex_position` y `time`
-    let pulse_intensity = ((uniforms.time as f32 * 0.3).sin() * 0.5 + 0.5) * 1.5;
-    let mut final_disk_color = event_horizon_color;
-
-    if in_accretion_disk {
-        final_disk_color = disk_color * pulse_intensity;
-
-        // Brillo adicional basado en la distancia desde el horizonte de eventos
-        let brightness = (1.0 / (1.0 + (distance_from_center - event_horizon_radius) * 10.0)).clamp(1.0, 2.0);
-        final_disk_color = final_disk_color * brightness;
-    }
-
-    // Calculamos la emisión utilizando `vertex_position` para crear un efecto que se mueve con el objeto
-    let emissive_output = final_disk_color * uniforms.emission_intensity * (1.0 + position.norm() * 0.5);
-
-    (final_disk_color, Some(emissive_output))
-}
 
 
 pub fn gargantua_shader(fragment: &Fragment, uniforms: &Uniforms) -> (Color, Option<Color>) {
-    // Muestra el color de la textura usando las coordenadas UV del fragmento
     let texture_color = with_texture(|texture| {
         texture.sample(fragment.tex_coords.x, fragment.tex_coords.y)
     });
 
-    // Aplica la intensidad de emisión desde los uniforms
-    let emission_intensity = uniforms.emission_intensity;
-    let emissive_output = texture_color * emission_intensity;
+    let base_color = texture_color.lerp(&Color::new(30, 30, 80), 0.3); // Mezcla el color de la textura con un azul oscuro
+    let emission_intensity = uniforms.emission_intensity.clamp(0.5, 1.0);
+    let emissive_color = Color::new(200, 180, 255); // Azul-lila para un brillo más suave
+    let emissive_output = emissive_color * emission_intensity;
 
-    // Devuelve el color de la textura como color base y el mismo color como emisión
-    (texture_color, Some(emissive_output))
+    (base_color, Some(emissive_output))
+}
+
+
+
+pub fn wormhole_shader(fragment: &Fragment, uniforms: &Uniforms) -> (Color, Option<Color>) {
+    let core_color = Color::new(10, 10, 20); // Azul oscuro para el núcleo
+    let border_emission_color = Color::new(255, 140, 0); // Naranja brillante
+    let cross_emission_color = Color::new(255, 100, 100); // Rojo-anaranjado
+
+    let border_radius = 0.9;
+    let inner_radius = 0.7;
+    let cross_thickness = 0.1;
+    let cross_length = 1.5;
+
+    let position = fragment.vertex_position;
+    let distance_from_center = position.norm();
+
+    let time = uniforms.time as f32 * 0.5;
+    let cos_angle = time.cos();
+    let sin_angle = time.sin();
+
+    let rotated_x = position.x * cos_angle - position.y * sin_angle;
+    let rotated_y = position.x * sin_angle + position.y * cos_angle;
+    let rotated_position = Vec2::new(rotated_x, rotated_y);
+
+    let in_border = distance_from_center > inner_radius && distance_from_center < border_radius;
+    let in_horizontal_cross = rotated_position.y.abs() < cross_thickness && rotated_position.x.abs() < cross_length;
+    let in_vertical_cross = rotated_position.x.abs() < cross_thickness && rotated_position.y.abs() < cross_length;
+    let in_cross = in_horizontal_cross || in_vertical_cross;
+
+    let mut ring_color = core_color;
+
+    if in_border {
+        let border_intensity = (1.0 - ((distance_from_center - inner_radius) / (border_radius - inner_radius)).powf(2.0)).clamp(0.0, 1.0);
+        ring_color = ring_color.lerp(&border_emission_color, border_intensity);
+    }
+
+    if in_cross {
+        let cross_intensity = (1.0 - (distance_from_center / inner_radius)).clamp(0.0, 1.0);
+        ring_color = ring_color.lerp(&cross_emission_color, cross_intensity);
+    }
+
+    let emission_intensity = uniforms.emission_intensity.clamp(0.5, 1.5);
+    let emissive_output = (ring_color + border_emission_color * 0.5) * emission_intensity;
+
+    (ring_color, Some(emissive_output))
 }
 
 
@@ -421,64 +432,37 @@ pub fn wormhole1_shader(fragment: &Fragment, uniforms: &Uniforms) -> (Color, Opt
     (ring_color, Some(emissive_output))
 }
 
-pub fn wormhole_shader(fragment: &Fragment, uniforms: &Uniforms) -> (Color, Option<Color>) {
-    // Colores base para el centro y el borde
-    let core_color = Color::new(0, 0, 0); // Negro para el núcleo
-    let border_emission_color = Color::new(255, 140, 0); // Naranja brillante para el borde
-    let cross_emission_color = Color::new(255, 100, 100); // Rojo-anaranjado brillante para la cruz
+pub fn gargantua_shader1(fragment: &Fragment, uniforms: &Uniforms) -> (Color, Option<Color>) {
+    // Colores base
+    let event_horizon_color = Color::new(0, 0, 0);
+    let disk_color = Color::new(255, 60, 248);
 
-    // Propiedades del agujero de gusano y la cruz
-    let border_radius = 0.9;
-    let inner_radius = 0.7;
-    let cross_thickness = 0.1;
-    let cross_length = 1.5; // Controla la longitud de cada brazo de la cruz
+    // Propiedades del agujero negro
+    let event_horizon_radius = 0.6;
+    let disk_inner_radius = 0.35;
+    let disk_outer_radius = 1.5;
 
-    // Posición y distancia desde el centro
+    // Posición del fragmento respecto al centro del objeto
     let position = fragment.vertex_position;
     let distance_from_center = position.norm();
 
-    // Ángulo de rotación basado en el tiempo para la animación continua de la cruz
-    let time = uniforms.time as f32 * 0.5; // Controla la velocidad de rotación
-    let cos_angle = time.cos();
-    let sin_angle = time.sin();
+    // Determinación de si el fragmento está en el disco de acreción
+    let in_accretion_disk = distance_from_center > disk_inner_radius && distance_from_center < disk_outer_radius;
 
-    // Rotar la posición del fragmento en torno al centro para alinear con la cruz girada
-    let rotated_x = position.x * cos_angle - position.y * sin_angle;
-    let rotated_y = position.x * sin_angle + position.y * cos_angle;
-    let rotated_position = Vec2::new(rotated_x, rotated_y);
+    // Intensidad de pulso basada en `vertex_position` y `time`
+    let pulse_intensity = ((uniforms.time as f32 * 0.3).sin() * 0.5 + 0.5) * 1.5;
+    let mut final_disk_color = event_horizon_color;
 
-    // Verificar si el fragmento está en el borde del agujero de gusano
-    let in_border = distance_from_center > inner_radius && distance_from_center < border_radius;
+    if in_accretion_disk {
+        final_disk_color = disk_color * pulse_intensity;
 
-    // Verificar si el fragmento está en la cruz rotada en el centro
-    let in_horizontal_cross = rotated_position.y.abs() < cross_thickness && rotated_position.x.abs() < cross_length;
-    let in_vertical_cross = rotated_position.x.abs() < cross_thickness && rotated_position.y.abs() < cross_length;
-    let in_cross = in_horizontal_cross || in_vertical_cross;
-
-    // Comenzar con el color base oscuro
-    let mut ring_color = core_color;
-
-    // Aplicar el color del borde anaranjado si está en el área del borde
-    if in_border {
-        let border_intensity = (1.0 - ((distance_from_center - inner_radius) / (border_radius - inner_radius)).powf(2.0)).clamp(0.0, 1.0);
-        ring_color = ring_color.lerp(&border_emission_color, border_intensity);
+        // Brillo adicional basado en la distancia desde el horizonte de eventos
+        let brightness = (1.0 / (1.0 + (distance_from_center - event_horizon_radius) * 10.0)).clamp(1.0, 2.0);
+        final_disk_color = final_disk_color * brightness;
     }
 
-    // Agregar la cruz rotada en el centro
-    if in_cross {
-        let cross_intensity = (1.0 - (distance_from_center / inner_radius)).clamp(0.0, 1.0);
-        ring_color = ring_color.lerp(&cross_emission_color, cross_intensity);
-    }
+    // Calculamos la emisión utilizando `vertex_position` para crear un efecto que se mueve con el objeto
+    let emissive_output = final_disk_color * uniforms.emission_intensity * (1.0 + position.norm() * 0.5);
 
-    // Aplicar emisión en el borde y la cruz utilizando `emission_intensity`
-    let emission_intensity = uniforms.emission_intensity * 1.5;
-    let emissive_output = ring_color * emission_intensity;
-
-    (ring_color, Some(emissive_output))
+    (final_disk_color, Some(emissive_output))
 }
-
-
-
-
-
-
