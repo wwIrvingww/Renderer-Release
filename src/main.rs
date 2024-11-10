@@ -17,6 +17,8 @@ mod texture;
 mod normal_map;
 mod skybox;
 
+
+
 use skybox::Skybox;
 use normal_map::{init_normal_map, with_normal_map};
 use texture::{init_texture, with_texture};
@@ -49,15 +51,13 @@ pub struct Uniforms<'a> {
 }
 
 
-pub struct Model<'a> {
+struct Model<'a> {
     vertex_array: &'a [Vertex],
     shader: PlanetShader,
     position: Vec3,
     scale: f32,
+    rotation: Vec3, // Nuevo campo para la rotación
 }
-
-
-
 
 
 enum PlanetShader {
@@ -77,7 +77,6 @@ enum CurrentModel {
     Eye,
 }
 
-
 fn blend_screen(base: u32, emission: u32) -> u32 {
     let base_r = (base >> 16) & 0xFF;
     let base_g = (base >> 8) & 0xFF;
@@ -94,12 +93,10 @@ fn blend_screen(base: u32, emission: u32) -> u32 {
     (screen_r << 16) | (screen_g << 8) | screen_b
 }
 
-
-
 // Inicializa la cámara en función del modelo seleccionado
 fn initialize_camera(model: &CurrentModel) -> Camera {
     match model {
-        CurrentModel::Sphere => Camera::new(Vec3::new(0.0, 0.0, 20.0), Vec3::new(0.0, 0.0, 0.0), Vec3::new(0.0, 1.0, 0.0)), //::new(0.0, 0.0, 5.0). La camara estaba en 5.0
+        CurrentModel::Sphere => Camera::new(Vec3::new(0.0, 20.0, 30.0), Vec3::new(0.0, 0.0, 0.0), Vec3::new(0.0, 1.0, 0.0)),
         CurrentModel::Ufo => Camera::new(Vec3::new(0.0, 0.0, 35.0), Vec3::new(0.0, 0.0, 0.0), Vec3::new(0.0, 1.0, 0.0)),
         CurrentModel::Eye => Camera::new(Vec3::new(0.0, 0.0, 15.0), Vec3::new(0.0, 0.0, 0.0), Vec3::new(0.0, 1.0, 0.0)),
 
@@ -113,6 +110,24 @@ fn create_cracked_earth_noise() -> FastNoiseLite {
     noise.set_frequency(Some(0.03));
     noise
 }
+
+
+
+fn create_model_matrix_with_rotation(position: Vec3, scale: f32, rotation: Vec3) -> Mat4 {
+    // Crear la matriz de traslación usando `translation`
+    let translation = nalgebra_glm::translation(&position);
+
+    // Crear la matriz de escala usando `scaling`
+    let scaling = nalgebra_glm::scaling(&Vec3::new(scale, scale, scale));
+
+    // Crear la matriz de rotación alrededor del eje Y
+    let rotation_matrix = nalgebra_glm::rotate_y(&Mat4::identity(), rotation.y);
+
+    // Multiplicar las matrices: traslación * rotación * escala
+    translation * rotation_matrix * scaling
+}
+
+
 
 fn create_viewport_matrix(width: f32, height: f32) -> Mat4 {
     Mat4::new(
@@ -140,14 +155,13 @@ fn create_model_matrix(position: Vec3, scale: f32) -> Mat4 {
 
 fn generate_spiral_position(index: usize, base_radius: f32, height_step: f32) -> Vec3 {
     let angle = index as f32 * 0.8 * PI; // Aumentamos el ángulo para cubrir más espacio
-    let radius = base_radius + index as f32 * 2.0; // Incremento del radio para expandir la espiral
+    let radius = base_radius + index as f32 * 10.0; // Incremento del radio aumentado a 10.0
     let x = radius * angle.cos();
     let z = radius * angle.sin();
-    let y = (height_step * index as f32) - 5.0; // Ajuste de altura para evitar alineación
+    let y = (height_step * index as f32 * 2.0) - 10.0; // Ajuste de altura para mayor separación
 
     Vec3::new(x, y, z)
 }
-
 
 fn render(framebuffer: &mut Framebuffer, uniforms: &Uniforms, vertex_array: &[Vertex], planet_shader: &PlanetShader) {
     
@@ -224,7 +238,6 @@ fn render(framebuffer: &mut Framebuffer, uniforms: &Uniforms, vertex_array: &[Ve
     }   
 }
 
-
 fn main() {
     let window_width = 1000;
     let window_height = 1000;
@@ -249,6 +262,9 @@ fn main() {
     let ufo_obj = Obj::load("src/assets/ufo.obj").expect("Failed to load ufo.obj");
     let eye_obj = Obj::load("src/assets/eye.obj").expect("Failed to load sphere.obj");
 
+    //Inicializar nave para explorar el espacio
+    let spaceship_obj = Obj::load("src/assets/spaceship.obj").expect("Failed to load spaceship.obj");
+
     // Inicializar la textura
     init_texture("src/assets/textures/water.png").expect("Failed to initialize texture");
 
@@ -263,68 +279,95 @@ fn main() {
     let sphere_vertices = sphere_obj.get_vertex_array();
     let ufo_vertices = ufo_obj.get_vertex_array();
     let eye_vertices = eye_obj.get_vertex_array();
+    let spaceship_vertices = spaceship_obj.get_vertex_array();
+
+    let mut current_model = CurrentModel::Sphere; // Empezamos con el modelo esfera
+
+    // Inicializa la cámara en función del modelo actual
+    let mut camera = initialize_camera(&current_model);
 
     // Crear la lista de modelos con las posiciones en espiral
-    let models = vec![
+    let mut models = vec![
     Model {
         vertex_array: &eye_vertices,
         shader: PlanetShader::Wormhole,
         position: Vec3::new(0.0, 0.0, 0.0), // Centro
         scale: 2.,
+        rotation: Vec3::new(0.0, 0.0, 0.0), // Inicializar rotación
     },
     Model {
         vertex_array: &sphere_vertices,
         shader: PlanetShader::Rocky,
         position: generate_spiral_position(1, 5.0, 1.0),
         scale: 1.0,
+        rotation: Vec3::new(0.0, 0.0, 0.0), // Inicializar rotación
+
     },
     Model {
         vertex_array: &sphere_vertices,
         shader: PlanetShader::Oceanic,
         position: generate_spiral_position(2, 5.0, 1.0),
         scale: 1.0,
+        rotation: Vec3::new(0.0, 0.0, 0.0), // Inicializar rotación
+
     },
     Model {
         vertex_array: &sphere_vertices,
         shader: PlanetShader::Earth,
         position: generate_spiral_position(3, 5.0, 1.0),
         scale: 1.0,
+        rotation: Vec3::new(0.0, 0.0, 0.0), // Inicializar rotación
+
     },
     Model {
         vertex_array: &sphere_vertices,
         shader: PlanetShader::Frozen,
         position: generate_spiral_position(4, 5.0, 1.0),
         scale: 1.2,
+        rotation: Vec3::new(0.0, 0.0, 0.0), // Inicializar rotación
+
     },
     Model {
         vertex_array: &sphere_vertices,
         shader: PlanetShader::Gaseous,
         position: generate_spiral_position(5, 5.0, 1.0),
         scale: 1.8,
+        rotation: Vec3::new(0.0, 0.0, 0.0), // Inicializar rotación
+
     },
     Model {
         vertex_array: &ufo_vertices,
         shader: PlanetShader::Ufo,
         position: generate_spiral_position(6, 5.0, 1.0),
-        scale: 0.7,
+        scale: 0.001,
+        rotation: Vec3::new(0.0, 0.0, 0.0), // Inicializar rotación
     },
     Model {
         vertex_array: &eye_vertices,
         shader: PlanetShader::Gargantua,
         position: generate_spiral_position(7, 5.0, 1.0),
         scale: 2.0,
+        rotation: Vec3::new(0.0, 0.0, 0.0), // Inicializar rotación
+    },
+    Model {
+        vertex_array: &spaceship_vertices,
+        shader: PlanetShader::Ufo,
+        //position: Vec3::new(20.0, 10.0, -30.0), // Posición fija lejos del centro
+        position: camera.eye + camera.get_forward_vector() * 5.0,
+        scale: 0.02,
+        rotation: Vec3::new(0.0, 0.0, 0.0), // Inicializar rotación
     },
     ];
+
+    // Actualizar la posición de la nave para que esté siempre frente a la cámara
+    // models.last_mut().unwrap().position = camera.eye + camera.get_forward_vector() * 15.0;
 
 
         
 
     let mut time_counter = 0;
     let mut current_planet_shader = PlanetShader::Rocky;
-    let mut current_model = CurrentModel::Sphere; // Empezamos con el modelo esfera
 
-    // Inicializa la cámara en función del modelo actual
-    let mut camera = initialize_camera(&current_model);
 
     // Inicializar el nivel de emision
     let mut emission_intensity = 1.0;
@@ -335,7 +378,19 @@ fn main() {
         }
     
         handle_input(&window, &mut camera);
+    
         framebuffer.clear();
+    
+        // Actualizar la posición de la nave para que esté siempre frente a la cámara
+        for model in &mut models {
+            if let PlanetShader::Ufo = model.shader {
+                model.position = camera.eye + camera.get_forward_vector() * 2.5; // Alejar a 20 unidades
+                let forward_vector = camera.get_forward_vector();      // Ajusta la rotación de la nave para que mire en la misma dirección que la camara
+                model.rotation = forward_vector.normalize();
+            }
+            
+        }
+        
     
         // Crear uniforms antes de renderizar
         let view_matrix = camera.get_view_matrix();
@@ -348,14 +403,13 @@ fn main() {
             view_matrix,
             projection_matrix,
             viewport_matrix,
-            model_matrix: Mat4::identity(), // Agrega esta línea
+            model_matrix: Mat4::identity(),
             transformation_matrix: Mat4::identity(),
             normal_matrix: Mat3::identity(),
             time: time_counter,
             noise: &noise,
             emission_intensity,
         };
-        
     
         // Renderizar el skybox primero
         skybox.render(&mut framebuffer, &uniforms, camera.eye);
@@ -363,10 +417,10 @@ fn main() {
         // Iterar sobre la lista de modelos y renderizar cada uno
         for model in &models {
             // Crear la matriz de modelo para este modelo
-            let model_matrix = create_model_matrix(model.position, model.scale);
+            let model_matrix = create_model_matrix_with_rotation(model.position, model.scale, model.rotation);
             let transformation_matrix = uniforms.projection_matrix * uniforms.view_matrix * model_matrix;
             let normal_matrix = model_matrix.fixed_resize::<3, 3>(0.0).try_inverse().unwrap().transpose();
-        
+    
             let model_uniforms = Uniforms {
                 model_matrix,
                 view_matrix: uniforms.view_matrix,
@@ -378,19 +432,17 @@ fn main() {
                 noise: uniforms.noise,
                 emission_intensity: uniforms.emission_intensity,
             };
-        
+    
             render(&mut framebuffer, &model_uniforms, model.vertex_array, &model.shader);
         }
-        
-        
     
         window
             .update_with_buffer(&framebuffer.buffer, framebuffer_width, framebuffer_height)
             .unwrap();
     
         std::thread::sleep(frame_delay);
-    }    
-    
+    }
+
 }
 
 // Función para manejar la selección de shaders y modelos de planeta
@@ -437,7 +489,6 @@ fn handle_key_input(window: &Window, current_shader: &mut PlanetShader, current_
     }
 
 }
-
 
 fn handle_input(window: &Window, camera: &mut Camera) {
     let orbit_speed = PI / 50.0;
