@@ -377,7 +377,7 @@ fn main() {
             break;
         }
     
-        handle_input(&window, &mut camera, models.last().unwrap().position);
+        handle_input(&window, &mut camera, models.last_mut().unwrap());
     
         framebuffer.clear();
     
@@ -490,7 +490,7 @@ fn handle_key_input(window: &Window, current_shader: &mut PlanetShader, current_
 
 }
 
-fn handle_input(window: &Window, camera: &mut Camera, spaceship_position: Vec3) {
+fn handle_input(window: &Window, camera: &mut Camera, spaceship_model: &mut Model) {
     let orbit_speed = PI / 50.0;
     let zoom_speed = 0.5;
 
@@ -515,6 +515,15 @@ fn handle_input(window: &Window, camera: &mut Camera, spaceship_position: Vec3) 
     }
 
     // Actualizar el centro de la cámara para que apunte siempre hacia la nave
-    camera.center = spaceship_position;
+    camera.center = spaceship_model.position;
+
+    // Calcular la rotación de la nave basada en la orientación de la cámara
+    let forward_vector = camera.get_forward_vector();
+    let pitch = forward_vector.y.atan2((forward_vector.x.powi(2) + forward_vector.z.powi(2)).sqrt());
+    let yaw = forward_vector.z.atan2(forward_vector.x);
+
+    // Actualizar la rotación de la nave
+    spaceship_model.rotation = Vec3::new(pitch, yaw, 0.0);
 }
+
 
