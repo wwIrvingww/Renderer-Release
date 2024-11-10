@@ -353,7 +353,7 @@ fn main() {
         vertex_array: &spaceship_vertices,
         shader: PlanetShader::Ufo,
         //position: Vec3::new(20.0, 10.0, -30.0), // Posición fija lejos del centro
-        position: camera.eye + camera.get_forward_vector() * 5.0,
+        position: camera.eye + camera.get_forward_vector() * 4.0,
         scale: 0.02,
         rotation: Vec3::new(0.0, 0.0, 0.0), // Inicializar rotación
     },
@@ -386,7 +386,7 @@ fn main() {
             if let PlanetShader::Ufo = model.shader {
                 model.position = camera.eye + camera.get_forward_vector() * 2.5; // Alejar a 20 unidades
                 let forward_vector = camera.get_forward_vector();      // Ajusta la rotación de la nave para que mire en la misma dirección que la camara
-                model.rotation = forward_vector.normalize();
+                model.rotation = Vec3::new(camera.pitch, camera.yaw, 0.0);
             }
             
         }
