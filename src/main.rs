@@ -377,7 +377,7 @@ fn main() {
             break;
         }
     
-        handle_input(&window, &mut camera);
+        handle_input(&window, &mut camera, models.last().unwrap().position);
     
         framebuffer.clear();
     
@@ -490,7 +490,7 @@ fn handle_key_input(window: &Window, current_shader: &mut PlanetShader, current_
 
 }
 
-fn handle_input(window: &Window, camera: &mut Camera) {
+fn handle_input(window: &Window, camera: &mut Camera, spaceship_position: Vec3) {
     let orbit_speed = PI / 50.0;
     let zoom_speed = 0.5;
 
@@ -513,4 +513,8 @@ fn handle_input(window: &Window, camera: &mut Camera) {
     if window.is_key_down(Key::S) {
         camera.zoom(zoom_speed);
     }
+
+    // Actualizar el centro de la cámara para que apunte siempre hacia la nave
+    camera.center = spaceship_position;
 }
+
