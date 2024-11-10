@@ -49,12 +49,14 @@ pub struct Uniforms<'a> {
 }
 
 
-
-pub struct Model {
-    pub vertex_array: Vec<Vertex>,
-    pub model_matrix: Mat4,
-    pub shader: PlanetShader,
+pub struct Model<'a> {
+    vertex_array: &'a [Vertex],
+    shader: PlanetShader,
+    position: Vec3,
+    scale: f32,
 }
+
+
 
 
 
@@ -128,9 +130,12 @@ fn create_projection_matrix(window_width: f32, window_height: f32) -> Mat4 {
     perspective(fov, aspect_ratio, near, far)
 }
 
-fn create_model_matrix() -> Mat4 {
-    Mat4::identity()
+fn create_model_matrix(position: Vec3, scale: f32) -> Mat4 {
+    let translation_matrix = nalgebra_glm::translation(&position);
+    let scale_matrix = nalgebra_glm::scaling(&Vec3::new(scale, scale, scale));
+    translation_matrix * scale_matrix
 }
+
 
 fn render(framebuffer: &mut Framebuffer, uniforms: &Uniforms, vertex_array: &[Vertex], planet_shader: &PlanetShader) {
     
@@ -239,24 +244,41 @@ fn main() {
     // let skybox = Skybox::new("src/assets/textures/stars.jpg");
     let skybox = Skybox::new(500); // Genera 500 estrellas
 
-    // Crear la lista de modelos
-    let mut models: Vec<Model> = vec![
+    // Almacenar los arrays de vértices en variables
+    let sphere_vertices = sphere_obj.get_vertex_array();
+    let ufo_vertices = ufo_obj.get_vertex_array();
+    let eye_vertices = eye_obj.get_vertex_array();
+
+    // Crear la lista de modelos utilizando las variables
+    let models = vec![
         Model {
-            vertex_array: sphere_obj.get_vertex_array(),
+            vertex_array: &sphere_vertices,
             shader: PlanetShader::Rocky,
-            model_matrix: create_model_matrix(), // Matriz de identidad por defecto
+            position: Vec3::new(0.0, 0.0, 0.0), // Centro, como la estrella principal
+            scale: 1.0,
         },
         Model {
-            vertex_array: ufo_obj.get_vertex_array(),
+            vertex_array: &sphere_vertices,
+            shader: PlanetShader::Gaseous,
+            position: Vec3::new(5.0, 0.0, -10.0), // Un planeta más alejado
+            scale: 0.8,
+        },
+        Model {
+            vertex_array: &ufo_vertices,
             shader: PlanetShader::Ufo,
-            model_matrix: create_model_matrix(), // Matriz de identidad por defecto
+            position: Vec3::new(-8.0, 3.0, -15.0), // Una nave en otra posición
+            scale: 1.5,
         },
         Model {
-            vertex_array: eye_obj.get_vertex_array(),
+            vertex_array: &eye_vertices,
             shader: PlanetShader::Gargantua,
-            model_matrix: create_model_matrix(), // Matriz de identidad por defecto
+            position: Vec3::new(10.0, 5.0, -20.0), // Otro objeto en el espacio
+            scale: 2.0,
         },
     ];
+
+
+    
 
     let mut time_counter = 0;
     let mut current_planet_shader = PlanetShader::Rocky;
@@ -301,11 +323,13 @@ fn main() {
     
         // Iterar sobre la lista de modelos y renderizar cada uno
         for model in &models {
-            let transformation_matrix = uniforms.projection_matrix * uniforms.view_matrix * model.model_matrix;
-            let normal_matrix = model.model_matrix.fixed_resize::<3, 3>(0.0).try_inverse().unwrap().transpose();
+            // Crear la matriz de modelo para este modelo
+            let model_matrix = create_model_matrix(model.position, model.scale);
+            let transformation_matrix = uniforms.projection_matrix * uniforms.view_matrix * model_matrix;
+            let normal_matrix = model_matrix.fixed_resize::<3, 3>(0.0).try_inverse().unwrap().transpose();
         
             let model_uniforms = Uniforms {
-                model_matrix: model.model_matrix,
+                model_matrix,
                 view_matrix: uniforms.view_matrix,
                 projection_matrix: uniforms.projection_matrix,
                 viewport_matrix: uniforms.viewport_matrix,
@@ -316,8 +340,9 @@ fn main() {
                 emission_intensity: uniforms.emission_intensity,
             };
         
-            render(&mut framebuffer, &model_uniforms, &model.vertex_array, &model.shader);
+            render(&mut framebuffer, &model_uniforms, model.vertex_array, &model.shader);
         }
+        
         
     
         window
