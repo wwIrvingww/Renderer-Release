@@ -45,8 +45,18 @@ pub struct Uniforms<'a> {
     normal_matrix: Mat3,
     time: u32,
     noise: &'a FastNoiseLite,
-    emission_intensity: f32,  // Escala de emisión global
+    emission_intensity: f32,
 }
+
+
+
+pub struct Model {
+    pub vertex_array: Vec<Vertex>,
+    pub model_matrix: Mat4,
+    pub shader: PlanetShader,
+}
+
+
 
 enum PlanetShader {
     Rocky,
@@ -86,7 +96,7 @@ fn blend_screen(base: u32, emission: u32) -> u32 {
 // Inicializa la cámara en función del modelo seleccionado
 fn initialize_camera(model: &CurrentModel) -> Camera {
     match model {
-        CurrentModel::Sphere => Camera::new(Vec3::new(0.0, 0.0, 5.0), Vec3::new(0.0, 0.0, 0.0), Vec3::new(0.0, 1.0, 0.0)),
+        CurrentModel::Sphere => Camera::new(Vec3::new(0.0, 0.0, 20.0), Vec3::new(0.0, 0.0, 0.0), Vec3::new(0.0, 1.0, 0.0)), //::new(0.0, 0.0, 5.0). La camara estaba en 5.0
         CurrentModel::Ufo => Camera::new(Vec3::new(0.0, 0.0, 35.0), Vec3::new(0.0, 0.0, 0.0), Vec3::new(0.0, 1.0, 0.0)),
         CurrentModel::Eye => Camera::new(Vec3::new(0.0, 0.0, 15.0), Vec3::new(0.0, 0.0, 0.0), Vec3::new(0.0, 1.0, 0.0)),
 
@@ -229,7 +239,24 @@ fn main() {
     // let skybox = Skybox::new("src/assets/textures/stars.jpg");
     let skybox = Skybox::new(500); // Genera 500 estrellas
 
-
+    // Crear la lista de modelos
+    let mut models: Vec<Model> = vec![
+        Model {
+            vertex_array: sphere_obj.get_vertex_array(),
+            shader: PlanetShader::Rocky,
+            model_matrix: create_model_matrix(), // Matriz de identidad por defecto
+        },
+        Model {
+            vertex_array: ufo_obj.get_vertex_array(),
+            shader: PlanetShader::Ufo,
+            model_matrix: create_model_matrix(), // Matriz de identidad por defecto
+        },
+        Model {
+            vertex_array: eye_obj.get_vertex_array(),
+            shader: PlanetShader::Gargantua,
+            model_matrix: create_model_matrix(), // Matriz de identidad por defecto
+        },
+    ];
 
     let mut time_counter = 0;
     let mut current_planet_shader = PlanetShader::Rocky;
@@ -247,52 +274,58 @@ fn main() {
         }
     
         handle_input(&window, &mut camera);
-        handle_key_input(&window, &mut current_planet_shader, &mut current_model, &mut camera);
-                
         framebuffer.clear();
     
-        // Crear uniforms antes de renderizar el skybox
-        let model_matrix = create_model_matrix();
+        // Crear uniforms antes de renderizar
         let view_matrix = camera.get_view_matrix();
         let projection_matrix = create_projection_matrix(window_width as f32, window_height as f32);
         let viewport_matrix = create_viewport_matrix(framebuffer_width as f32, framebuffer_height as f32);
     
-        let transformation_matrix = projection_matrix * view_matrix * model_matrix;
-        let normal_matrix = model_matrix.fixed_resize::<3, 3>(0.0).try_inverse().unwrap().transpose();
-    
         time_counter += 1;
     
         let uniforms = Uniforms {
-            model_matrix,
             view_matrix,
             projection_matrix,
             viewport_matrix,
-            transformation_matrix,
-            normal_matrix,
+            model_matrix: Mat4::identity(), // Agrega esta línea
+            transformation_matrix: Mat4::identity(),
+            normal_matrix: Mat3::identity(),
             time: time_counter,
             noise: &noise,
-            emission_intensity: emission_intensity,
+            emission_intensity,
         };
+        
     
-        // Renderizar el skybox antes de los objetos
+        // Renderizar el skybox primero
         skybox.render(&mut framebuffer, &uniforms, camera.eye);
     
-        // Seleccionar el vertex array basado en el modelo actual
-        let vertex_arrays = match current_model {
-            CurrentModel::Sphere => sphere_obj.get_vertex_array(),
-            CurrentModel::Ufo => ufo_obj.get_vertex_array(),
-            CurrentModel::Eye => eye_obj.get_vertex_array(),
-        };
-    
-        framebuffer.set_current_color(0xFFDDDD);
-        render(&mut framebuffer, &uniforms, &vertex_arrays, &current_planet_shader);
+        // Iterar sobre la lista de modelos y renderizar cada uno
+        for model in &models {
+            let transformation_matrix = uniforms.projection_matrix * uniforms.view_matrix * model.model_matrix;
+            let normal_matrix = model.model_matrix.fixed_resize::<3, 3>(0.0).try_inverse().unwrap().transpose();
+        
+            let model_uniforms = Uniforms {
+                model_matrix: model.model_matrix,
+                view_matrix: uniforms.view_matrix,
+                projection_matrix: uniforms.projection_matrix,
+                viewport_matrix: uniforms.viewport_matrix,
+                transformation_matrix,
+                normal_matrix,
+                time: uniforms.time,
+                noise: uniforms.noise,
+                emission_intensity: uniforms.emission_intensity,
+            };
+        
+            render(&mut framebuffer, &model_uniforms, &model.vertex_array, &model.shader);
+        }
+        
     
         window
             .update_with_buffer(&framebuffer.buffer, framebuffer_width, framebuffer_height)
             .unwrap();
     
         std::thread::sleep(frame_delay);
-    }   
+    }    
     
 }
 
