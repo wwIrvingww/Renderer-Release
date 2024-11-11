@@ -57,11 +57,11 @@ struct Model<'a> {
     position: Vec3,
     scale: f32,
     rotation: Vec3,
-    rotation_speed: Vec3, // Nueva velocidad de rotación para cada eje
+    rotation_speed: Vec3,
+    collision_radius: f32, // Radio de colisión
 }
 
-
-
+#[derive(PartialEq)]
 enum PlanetShader {
     Rocky,
     Gaseous,
@@ -70,13 +70,21 @@ enum PlanetShader {
     Oceanic,
     Ufo,
     Gargantua,
-    Wormhole
+    Wormhole,
 }
+
 
 enum CurrentModel {
     Sphere,
     Ufo,
     Eye,
+}
+
+
+fn check_collision(model_a: &Model, model_b: &Model) -> bool {
+    let distance = nalgebra_glm::distance(&model_a.position, &model_b.position);
+    let combined_radius = model_a.collision_radius + model_b.collision_radius;
+    distance < combined_radius
 }
 
 // Función para mover la nave a una posición cerca del planeta seleccionado
@@ -319,6 +327,7 @@ fn main() {
         scale: 2.,
         rotation: Vec3::new(0.0, 0.0, 0.0), // Inicializar rotación
         rotation_speed: Vec3::new(0.0, 0.2, 0.0), // Rotación lenta en el eje Y
+        collision_radius: 2.0,
     },
     Model {
         vertex_array: &sphere_vertices,
@@ -327,7 +336,7 @@ fn main() {
         scale: 1.5,
         rotation: Vec3::new(0.0, 0.0, 0.0), // Inicializar rotación
         rotation_speed: Vec3::new(0.0, 0.4, 0.0), // Rotación lenta en el eje Y
-
+        collision_radius: 1.5,
     },
     Model {
         vertex_array: &sphere_vertices,
@@ -336,7 +345,7 @@ fn main() {
         scale: 1.0,
         rotation: Vec3::new(0.0, 0.0, 0.0), // Inicializar rotación
         rotation_speed: Vec3::new(0.0, 0.5, 0.0), // Rotación lenta en el eje Y
-
+        collision_radius: 1.5,
     },
     Model {
         vertex_array: &sphere_vertices,
@@ -345,8 +354,7 @@ fn main() {
         scale: 1.5,
         rotation: Vec3::new(0.0, 0.0, 0.0), // Inicializar rotación
         rotation_speed: Vec3::new(0.0, 0.8, 0.0), // Rotación lenta en el eje Y
-
-
+        collision_radius: 1.5,
     },
     Model {
         vertex_array: &sphere_vertices,
@@ -355,8 +363,7 @@ fn main() {
         scale: 1.5,
         rotation: Vec3::new(0.0, 0.0, 0.0), // Inicializar rotación
         rotation_speed: Vec3::new(0.0, 0.13, 0.0), // Rotación lenta en el eje Y
-
-
+        collision_radius: 1.5,
     },
     Model {
         vertex_array: &sphere_vertices,
@@ -365,8 +372,7 @@ fn main() {
         scale: 2.0,
         rotation: Vec3::new(0.0, 0.0, 0.0), // Inicializar rotación
         rotation_speed: Vec3::new(0.0, 0.21, 0.0), // Rotación lenta en el eje Y
-
-
+        collision_radius: 2.0,
     },
     Model {
         vertex_array: &ufo_vertices,
@@ -375,7 +381,7 @@ fn main() {
         scale: 0.005,
         rotation: Vec3::new(0.0, 0.0, 0.0), // Inicializar rotación
         rotation_speed: Vec3::new(0.0, 0.8, 0.0), // Rotación lenta en el eje Y
-
+        collision_radius: 0.005,
     },
     Model {
         vertex_array: &eye_vertices,
@@ -384,17 +390,16 @@ fn main() {
         scale: 2.0,
         rotation: Vec3::new(0.0, 0.0, 0.0), // Inicializar rotación
         rotation_speed: Vec3::new(0.0, 0.0, 0.0), // Rotación lenta en el eje Y
-
+        collision_radius: 2.0,
     },
     Model {
         vertex_array: &spaceship_vertices,
         shader: PlanetShader::Ufo,
-        //position: Vec3::new(20.0, 10.0, -30.0), // Posición fija lejos del centro
         position: camera.eye + camera.get_forward_vector() * 4.0,
         scale: 0.02,
         rotation: Vec3::new(0.0, 0.0, 0.0), // Inicializar rotación
         rotation_speed: Vec3::new(0.0, 0.0, 0.0), // Rotación lenta en el eje Y
-
+        collision_radius: 0.02,
     },
     ];
 
@@ -416,7 +421,11 @@ fn main() {
             break;
         }
     
-        handle_input(&window, &mut camera, models.last_mut().unwrap());
+        let (rest_models, spaceship_model) = models.split_last_mut().unwrap();
+        handle_input(&window, &mut camera, rest_models, spaceship_model);
+        
+        
+        
         handle_key_input(&window, &mut camera, &mut models);
     
         framebuffer.clear();
@@ -521,10 +530,12 @@ fn handle_key_input(window: &Window, camera: &mut Camera, models: &mut Vec<Model
 
 
 
-fn handle_input(window: &Window, camera: &mut Camera, spaceship_model: &mut Model) {
+fn handle_input(window: &Window, camera: &mut Camera, spaceship_model: &mut Model, models: &mut [Model]) {
     let orbit_speed = PI / 50.0;
     let zoom_speed = 0.5;
+    let mut new_position = spaceship_model.position;
 
+    // Movimiento con flechas
     if window.is_key_down(Key::Left) {
         camera.orbit(orbit_speed, 0.0);
     }
@@ -538,11 +549,26 @@ fn handle_input(window: &Window, camera: &mut Camera, spaceship_model: &mut Mode
         camera.orbit(0.0, -orbit_speed);
     }
 
+    // Zoom con W y S
     if window.is_key_down(Key::W) {
         camera.zoom(-zoom_speed);
     }
     if window.is_key_down(Key::S) {
         camera.zoom(zoom_speed);
+    }
+    
+    // Verificar colisiones antes de actualizar la posición
+    let mut collision_detected = false;
+    for model in models {
+        if model.shader != PlanetShader::Ufo && check_collision(&spaceship_model, &model) {
+            collision_detected = true;
+            break;
+        }
+    }
+
+    // Si no se detecta colisión, actualizar la posición de la nave
+    if !collision_detected {
+        spaceship_model.position = new_position;
     }
 
     // Actualizar el centro de la cámara para que apunte siempre hacia la nave
@@ -556,6 +582,3 @@ fn handle_input(window: &Window, camera: &mut Camera, spaceship_model: &mut Mode
     // Actualizar la rotación de la nave
     spaceship_model.rotation = Vec3::new(pitch, yaw, 0.0);
 }
-
-
-
