@@ -79,6 +79,28 @@ enum CurrentModel {
     Eye,
 }
 
+// Función para mover la nave a una posición cerca del planeta seleccionado
+fn warp_to_planet(camera: &mut Camera, planet: &Model) {
+    let warp_distance = 15.0; // Distancia fija para ubicarse frente al planeta
+
+    // Actualizar la posición de la cámara: frente al planeta, a la misma altura y posición lateral
+    camera.eye = Vec3::new(planet.position.x, planet.position.y, planet.position.z + warp_distance);
+
+    // Apuntar la cámara hacia el planeta
+    camera.center = planet.position;
+
+    // Ajustar los ángulos de rotación
+    let forward = camera.get_forward_vector();
+    camera.pitch = forward.y.atan2((forward.x.powi(2) + forward.z.powi(2)).sqrt());
+    camera.yaw = forward.z.atan2(forward.x);
+
+    // Indicar que la cámara ha cambiado
+    camera.has_changed = true;
+}
+
+
+
+
 fn blend_screen(base: u32, emission: u32) -> u32 {
     let base_r = (base >> 16) & 0xFF;
     let base_g = (base >> 8) & 0xFF;
@@ -302,7 +324,7 @@ fn main() {
         vertex_array: &sphere_vertices,
         shader: PlanetShader::Rocky,
         position: generate_spiral_position(1, 5.0, 1.0),
-        scale: 1.0,
+        scale: 1.5,
         rotation: Vec3::new(0.0, 0.0, 0.0), // Inicializar rotación
         rotation_speed: Vec3::new(0.0, 0.4, 0.0), // Rotación lenta en el eje Y
 
@@ -320,7 +342,7 @@ fn main() {
         vertex_array: &sphere_vertices,
         shader: PlanetShader::Earth,
         position: generate_spiral_position(3, 5.0, 1.0),
-        scale: 1.0,
+        scale: 1.5,
         rotation: Vec3::new(0.0, 0.0, 0.0), // Inicializar rotación
         rotation_speed: Vec3::new(0.0, 0.8, 0.0), // Rotación lenta en el eje Y
 
@@ -330,7 +352,7 @@ fn main() {
         vertex_array: &sphere_vertices,
         shader: PlanetShader::Frozen,
         position: generate_spiral_position(4, 5.0, 1.0),
-        scale: 1.2,
+        scale: 1.5,
         rotation: Vec3::new(0.0, 0.0, 0.0), // Inicializar rotación
         rotation_speed: Vec3::new(0.0, 0.13, 0.0), // Rotación lenta en el eje Y
 
@@ -340,7 +362,7 @@ fn main() {
         vertex_array: &sphere_vertices,
         shader: PlanetShader::Gaseous,
         position: generate_spiral_position(5, 5.0, 1.0),
-        scale: 1.8,
+        scale: 2.0,
         rotation: Vec3::new(0.0, 0.0, 0.0), // Inicializar rotación
         rotation_speed: Vec3::new(0.0, 0.21, 0.0), // Rotación lenta en el eje Y
 
@@ -350,7 +372,7 @@ fn main() {
         vertex_array: &ufo_vertices,
         shader: PlanetShader::Ufo,
         position: generate_spiral_position(6, 5.0, 1.0),
-        scale: 0.01,
+        scale: 0.005,
         rotation: Vec3::new(0.0, 0.0, 0.0), // Inicializar rotación
         rotation_speed: Vec3::new(0.0, 0.8, 0.0), // Rotación lenta en el eje Y
 
@@ -395,6 +417,7 @@ fn main() {
         }
     
         handle_input(&window, &mut camera, models.last_mut().unwrap());
+        handle_key_input(&window, &mut camera, &mut models);
     
         framebuffer.clear();
     
@@ -469,49 +492,34 @@ fn main() {
 }
 
 // Función para manejar la selección de shaders y modelos de planetas.
-fn handle_key_input(window: &Window, current_shader: &mut PlanetShader, current_model: &mut CurrentModel, camera: &mut Camera) {
+fn handle_key_input(window: &Window, camera: &mut Camera, models: &mut Vec<Model>) {
     if window.is_key_down(Key::Key1) {
-        *current_shader = PlanetShader::Rocky;
-        *current_model = CurrentModel::Sphere; // Volver al modelo Sphere
-        *camera = initialize_camera(current_model); // Reinicializar la cámara
+        warp_to_planet(camera, &models[1]); // Rocky
     }
     if window.is_key_down(Key::Key2) {
-        *current_shader = PlanetShader::Gaseous;
-        *current_model = CurrentModel::Sphere; // Volver al modelo Sphere
-        *camera = initialize_camera(current_model); // Reinicializar la cámara
+        warp_to_planet(camera, &models[2]); // Gaseous
     }
     if window.is_key_down(Key::Key3) {
-        *current_shader = PlanetShader::Frozen;
-        *current_model = CurrentModel::Sphere; // Volver al modelo Sphere
-        *camera = initialize_camera(current_model); // Reinicializar la cámara
+        warp_to_planet(camera, &models[3]); // Frozen
     }
     if window.is_key_down(Key::Key4) {
-        *current_shader = PlanetShader::Earth;
-        *current_model = CurrentModel::Sphere; // Volver al modelo Sphere
-        *camera = initialize_camera(current_model); // Reinicializar la cámara
+        warp_to_planet(camera, &models[4]); // Earth
     }
     if window.is_key_down(Key::Key5) {
-        *current_shader = PlanetShader::Oceanic;
-        *current_model = CurrentModel::Eye; // Volver al modelo Sphere
-        *camera = initialize_camera(current_model); // Reinicializar la cámara
+        warp_to_planet(camera, &models[5]); // Oceanic
     }
     if window.is_key_down(Key::Key6) {
-        *current_shader = PlanetShader::Ufo;
-        *current_model = CurrentModel::Ufo; // Cambiar al modelo UFO
-        *camera = initialize_camera(current_model); // Reinicializar la cámara
+        warp_to_planet(camera, &models[6]); // UFO
     }
     if window.is_key_down(Key::Key7) {
-        *current_shader = PlanetShader::Gargantua;
-        *current_model = CurrentModel::Eye; // Volver al modelo Sphere
-        *camera = initialize_camera(current_model); // Reinicializar la cámara
+        warp_to_planet(camera, &models[7]); // Gargantua
     }
     if window.is_key_down(Key::Key8) {
-        *current_shader = PlanetShader::Wormhole;
-        *current_model = CurrentModel::Sphere; // Volver al modelo Sphere
-        *camera = initialize_camera(current_model); // Reinicializar la cámara
+        warp_to_planet(camera, &models[0]); // Wormhole (al principio de la lista)
     }
-
 }
+
+
 
 fn handle_input(window: &Window, camera: &mut Camera, spaceship_model: &mut Model) {
     let orbit_speed = PI / 50.0;
