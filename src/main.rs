@@ -324,10 +324,10 @@ fn main() {
         vertex_array: &eye_vertices,
         shader: PlanetShader::Wormhole,
         position: Vec3::new(0.0, 0.0, 0.0), // Centro
-        scale: 2.,
+        scale: 2.0,
         rotation: Vec3::new(0.0, 0.0, 0.0), // Inicializar rotación
         rotation_speed: Vec3::new(0.0, 0.2, 0.0), // Rotación lenta en el eje Y
-        collision_radius: 2.0,
+        collision_radius: 3.0,
     },
     Model {
         vertex_array: &sphere_vertices,
@@ -336,7 +336,7 @@ fn main() {
         scale: 1.5,
         rotation: Vec3::new(0.0, 0.0, 0.0), // Inicializar rotación
         rotation_speed: Vec3::new(0.0, 0.4, 0.0), // Rotación lenta en el eje Y
-        collision_radius: 1.5,
+        collision_radius: 3.5,
     },
     Model {
         vertex_array: &sphere_vertices,
@@ -345,7 +345,7 @@ fn main() {
         scale: 1.0,
         rotation: Vec3::new(0.0, 0.0, 0.0), // Inicializar rotación
         rotation_speed: Vec3::new(0.0, 0.5, 0.0), // Rotación lenta en el eje Y
-        collision_radius: 1.5,
+        collision_radius: 2.5,
     },
     Model {
         vertex_array: &sphere_vertices,
@@ -354,7 +354,7 @@ fn main() {
         scale: 1.5,
         rotation: Vec3::new(0.0, 0.0, 0.0), // Inicializar rotación
         rotation_speed: Vec3::new(0.0, 0.8, 0.0), // Rotación lenta en el eje Y
-        collision_radius: 1.5,
+        collision_radius: 3.5,
     },
     Model {
         vertex_array: &sphere_vertices,
@@ -363,7 +363,7 @@ fn main() {
         scale: 1.5,
         rotation: Vec3::new(0.0, 0.0, 0.0), // Inicializar rotación
         rotation_speed: Vec3::new(0.0, 0.13, 0.0), // Rotación lenta en el eje Y
-        collision_radius: 1.5,
+        collision_radius: 3.5,
     },
     Model {
         vertex_array: &sphere_vertices,
@@ -372,7 +372,7 @@ fn main() {
         scale: 2.0,
         rotation: Vec3::new(0.0, 0.0, 0.0), // Inicializar rotación
         rotation_speed: Vec3::new(0.0, 0.21, 0.0), // Rotación lenta en el eje Y
-        collision_radius: 2.0,
+        collision_radius: 4.0,
     },
     Model {
         vertex_array: &ufo_vertices,
@@ -381,7 +381,7 @@ fn main() {
         scale: 0.005,
         rotation: Vec3::new(0.0, 0.0, 0.0), // Inicializar rotación
         rotation_speed: Vec3::new(0.0, 0.8, 0.0), // Rotación lenta en el eje Y
-        collision_radius: 0.005,
+        collision_radius: 0.05,
     },
     Model {
         vertex_array: &eye_vertices,
@@ -390,7 +390,7 @@ fn main() {
         scale: 2.0,
         rotation: Vec3::new(0.0, 0.0, 0.0), // Inicializar rotación
         rotation_speed: Vec3::new(0.0, 0.0, 0.0), // Rotación lenta en el eje Y
-        collision_radius: 2.0,
+        collision_radius: 4.0,
     },
     Model {
         vertex_array: &spaceship_vertices,
@@ -399,15 +399,9 @@ fn main() {
         scale: 0.02,
         rotation: Vec3::new(0.0, 0.0, 0.0), // Inicializar rotación
         rotation_speed: Vec3::new(0.0, 0.0, 0.0), // Rotación lenta en el eje Y
-        collision_radius: 0.02,
+        collision_radius: 8.0,
     },
     ];
-
-    // Actualizar la posición de la nave para que esté siempre frente a la cámara
-    // models.last_mut().unwrap().position = camera.eye + camera.get_forward_vector() * 15.0;
-
-
-        
 
     let mut time_counter = 0;
     let mut current_planet_shader = PlanetShader::Rocky;
@@ -423,8 +417,6 @@ fn main() {
     
         let (rest_models, spaceship_model) = models.split_last_mut().unwrap();
         handle_input(&window, &mut camera, rest_models, spaceship_model);
-        
-        
         
         handle_key_input(&window, &mut camera, &mut models);
     
@@ -535,7 +527,7 @@ fn handle_input(window: &Window, camera: &mut Camera, spaceship_model: &mut Mode
     let zoom_speed = 0.5;
     let mut new_position = spaceship_model.position;
 
-    // Movimiento con flechas
+    // Movimiento con flechas para orbitar la cámara
     if window.is_key_down(Key::Left) {
         camera.orbit(orbit_speed, 0.0);
     }
@@ -549,6 +541,7 @@ fn handle_input(window: &Window, camera: &mut Camera, spaceship_model: &mut Mode
         camera.orbit(0.0, -orbit_speed);
     }
 
+    // Zoom con teclas W y S
     // Zoom con W y S
     if window.is_key_down(Key::W) {
         camera.zoom(-zoom_speed);
@@ -556,7 +549,7 @@ fn handle_input(window: &Window, camera: &mut Camera, spaceship_model: &mut Mode
     if window.is_key_down(Key::S) {
         camera.zoom(zoom_speed);
     }
-    
+
     // Verificar colisiones antes de actualizar la posición
     let mut collision_detected = false;
     for model in models {
@@ -566,9 +559,20 @@ fn handle_input(window: &Window, camera: &mut Camera, spaceship_model: &mut Mode
         }
     }
 
-    // Si no se detecta colisión, actualizar la posición de la nave
+    // Manejar la posición según colisión
     if !collision_detected {
+        // No se detectó colisión, actualizar la posición
         spaceship_model.position = new_position;
+    } else {
+        // Si hay colisión, retroceder la nave ligeramente
+        let max_retroceso = 5.0;
+        let backward_vector = -camera.get_forward_vector() * 2.5;
+        let nueva_posicion = spaceship_model.position + backward_vector;
+
+        // Limitar el retroceso para evitar retrocesos infinitos
+        if nalgebra_glm::distance(&spaceship_model.position, &nueva_posicion) < max_retroceso {
+            spaceship_model.position = nueva_posicion;
+        }
     }
 
     // Actualizar el centro de la cámara para que apunte siempre hacia la nave
@@ -582,3 +586,4 @@ fn handle_input(window: &Window, camera: &mut Camera, spaceship_model: &mut Mode
     // Actualizar la rotación de la nave
     spaceship_model.rotation = Vec3::new(pitch, yaw, 0.0);
 }
+
