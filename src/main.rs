@@ -445,7 +445,7 @@ fn main() {
 
 }
 
-// Función para manejar la selección de shaders y modelos de planeta
+// Función para manejar la selección de shaders y modelos de planetas.
 fn handle_key_input(window: &Window, current_shader: &mut PlanetShader, current_model: &mut CurrentModel, camera: &mut Camera) {
     if window.is_key_down(Key::Key1) {
         *current_shader = PlanetShader::Rocky;
@@ -525,5 +525,6 @@ fn handle_input(window: &Window, camera: &mut Camera, spaceship_model: &mut Mode
     // Actualizar la rotación de la nave
     spaceship_model.rotation = Vec3::new(pitch, yaw, 0.0);
 }
+
 
 
