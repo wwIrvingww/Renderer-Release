@@ -56,8 +56,10 @@ struct Model<'a> {
     shader: PlanetShader,
     position: Vec3,
     scale: f32,
-    rotation: Vec3, // Nuevo campo para la rotación
+    rotation: Vec3,
+    rotation_speed: Vec3, // Nueva velocidad de rotación para cada eje
 }
+
 
 
 enum PlanetShader {
@@ -294,6 +296,7 @@ fn main() {
         position: Vec3::new(0.0, 0.0, 0.0), // Centro
         scale: 2.,
         rotation: Vec3::new(0.0, 0.0, 0.0), // Inicializar rotación
+        rotation_speed: Vec3::new(0.0, 0.2, 0.0), // Rotación lenta en el eje Y
     },
     Model {
         vertex_array: &sphere_vertices,
@@ -301,6 +304,7 @@ fn main() {
         position: generate_spiral_position(1, 5.0, 1.0),
         scale: 1.0,
         rotation: Vec3::new(0.0, 0.0, 0.0), // Inicializar rotación
+        rotation_speed: Vec3::new(0.0, 0.4, 0.0), // Rotación lenta en el eje Y
 
     },
     Model {
@@ -309,6 +313,7 @@ fn main() {
         position: generate_spiral_position(2, 5.0, 1.0),
         scale: 1.0,
         rotation: Vec3::new(0.0, 0.0, 0.0), // Inicializar rotación
+        rotation_speed: Vec3::new(0.0, 0.5, 0.0), // Rotación lenta en el eje Y
 
     },
     Model {
@@ -317,6 +322,8 @@ fn main() {
         position: generate_spiral_position(3, 5.0, 1.0),
         scale: 1.0,
         rotation: Vec3::new(0.0, 0.0, 0.0), // Inicializar rotación
+        rotation_speed: Vec3::new(0.0, 0.8, 0.0), // Rotación lenta en el eje Y
+
 
     },
     Model {
@@ -325,6 +332,8 @@ fn main() {
         position: generate_spiral_position(4, 5.0, 1.0),
         scale: 1.2,
         rotation: Vec3::new(0.0, 0.0, 0.0), // Inicializar rotación
+        rotation_speed: Vec3::new(0.0, 0.13, 0.0), // Rotación lenta en el eje Y
+
 
     },
     Model {
@@ -333,14 +342,18 @@ fn main() {
         position: generate_spiral_position(5, 5.0, 1.0),
         scale: 1.8,
         rotation: Vec3::new(0.0, 0.0, 0.0), // Inicializar rotación
+        rotation_speed: Vec3::new(0.0, 0.21, 0.0), // Rotación lenta en el eje Y
+
 
     },
     Model {
         vertex_array: &ufo_vertices,
         shader: PlanetShader::Ufo,
         position: generate_spiral_position(6, 5.0, 1.0),
-        scale: 0.001,
+        scale: 0.01,
         rotation: Vec3::new(0.0, 0.0, 0.0), // Inicializar rotación
+        rotation_speed: Vec3::new(0.0, 0.8, 0.0), // Rotación lenta en el eje Y
+
     },
     Model {
         vertex_array: &eye_vertices,
@@ -348,6 +361,8 @@ fn main() {
         position: generate_spiral_position(7, 5.0, 1.0),
         scale: 2.0,
         rotation: Vec3::new(0.0, 0.0, 0.0), // Inicializar rotación
+        rotation_speed: Vec3::new(0.0, 0.0, 0.0), // Rotación lenta en el eje Y
+
     },
     Model {
         vertex_array: &spaceship_vertices,
@@ -356,6 +371,8 @@ fn main() {
         position: camera.eye + camera.get_forward_vector() * 4.0,
         scale: 0.02,
         rotation: Vec3::new(0.0, 0.0, 0.0), // Inicializar rotación
+        rotation_speed: Vec3::new(0.0, 0.0, 0.0), // Rotación lenta en el eje Y
+
     },
     ];
 
@@ -383,13 +400,18 @@ fn main() {
     
         // Actualizar la posición de la nave para que esté siempre frente a la cámara
         for model in &mut models {
+            // Si es un UFO, seguimos controlando su posición y rotación usando la cámara
             if let PlanetShader::Ufo = model.shader {
-                model.position = camera.eye + camera.get_forward_vector() * 2.5; // Alejar a 20 unidades
-                let forward_vector = camera.get_forward_vector();      // Ajusta la rotación de la nave para que mire en la misma dirección que la camara
+                model.position = camera.eye + camera.get_forward_vector() * 2.5;
                 model.rotation = Vec3::new(camera.pitch, camera.yaw, 0.0);
+            } else {
+                // Para otros modelos, actualizamos la rotación usando `rotation_speed`
+                model.rotation.x += model.rotation_speed.x * time_counter as f32 * 0.001;
+                model.rotation.y += model.rotation_speed.y * time_counter as f32 * 0.001;
+                model.rotation.z += model.rotation_speed.z * time_counter as f32 * 0.001;
             }
-            
         }
+        
         
     
         // Crear uniforms antes de renderizar
@@ -420,6 +442,7 @@ fn main() {
             let model_matrix = create_model_matrix_with_rotation(model.position, model.scale, model.rotation);
             let transformation_matrix = uniforms.projection_matrix * uniforms.view_matrix * model_matrix;
             let normal_matrix = model_matrix.fixed_resize::<3, 3>(0.0).try_inverse().unwrap().transpose();
+            
     
             let model_uniforms = Uniforms {
                 model_matrix,
