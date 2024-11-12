@@ -60,7 +60,6 @@ impl Camera {
         }
 
         self.has_changed = true;
-        println!("Cambiando Bird Eye View: eye: {:?}", self.eye);
     }
 
     pub fn get_view_matrix(&self) -> nalgebra_glm::Mat4 {
