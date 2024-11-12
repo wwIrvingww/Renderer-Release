@@ -527,6 +527,14 @@ fn handle_input(window: &Window, camera: &mut Camera, spaceship_model: &mut Mode
     let zoom_speed = 0.5;
     let mut new_position = spaceship_model.position;
 
+    // Cambio a Bird Eye View al presionar la tecla B
+    // Cambio a Bird Eye View al presionar la tecla B
+    if window.is_key_down(Key::B) {
+        camera.toggle_bird_eye_view();
+    }
+    
+
+
     // Movimiento con flechas para orbitar la cámara
     if window.is_key_down(Key::Left) {
         camera.orbit(orbit_speed, 0.0);
@@ -542,7 +550,6 @@ fn handle_input(window: &Window, camera: &mut Camera, spaceship_model: &mut Mode
     }
 
     // Zoom con teclas W y S
-    // Zoom con W y S
     if window.is_key_down(Key::W) {
         camera.zoom(-zoom_speed);
     }
@@ -561,29 +568,28 @@ fn handle_input(window: &Window, camera: &mut Camera, spaceship_model: &mut Mode
 
     // Manejar la posición según colisión
     if !collision_detected {
-        // No se detectó colisión, actualizar la posición
         spaceship_model.position = new_position;
     } else {
-        // Si hay colisión, retroceder la nave ligeramente
         let max_retroceso = 5.0;
         let backward_vector = -camera.get_forward_vector() * 2.5;
         let nueva_posicion = spaceship_model.position + backward_vector;
 
-        // Limitar el retroceso para evitar retrocesos infinitos
         if nalgebra_glm::distance(&spaceship_model.position, &nueva_posicion) < max_retroceso {
             spaceship_model.position = nueva_posicion;
         }
     }
 
-    // Actualizar el centro de la cámara para que apunte siempre hacia la nave
-    camera.center = spaceship_model.position;
+    // Actualizar el centro de la cámara para que apunte siempre hacia la nave si no está en Bird Eye View
+    if !camera.is_bird_eye_view {
+        camera.center = spaceship_model.position;
+    }
 
     // Calcular la rotación de la nave basada en la orientación de la cámara
     let forward_vector = camera.get_forward_vector();
     let pitch = forward_vector.y.atan2((forward_vector.x.powi(2) + forward_vector.z.powi(2)).sqrt());
     let yaw = forward_vector.z.atan2(forward_vector.x);
 
-    // Actualizar la rotación de la nave
     spaceship_model.rotation = Vec3::new(pitch, yaw, 0.0);
 }
+
 
