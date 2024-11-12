@@ -83,14 +83,16 @@ enum CurrentModel {
 
 fn render_orbits(framebuffer: &mut Framebuffer, models: &[Model], view_matrix: &Mat4, projection_matrix: &Mat4) {
     let orbit_points = 100; // Número de segmentos para aproximar el círculo de la órbita
+    let center = Vec3::new(0.0, 0.0, 0.0); // Centro del sistema de órbitas (origen)
+
     for model in models {
         // Excluir los modelos que no deben tener órbita
         if model.shader == PlanetShader::Ufo || model.shader == PlanetShader::Wormhole {
             continue;
         }
 
-        let center = model.position;
-        let orbit_radius = model.collision_radius * 4.0; // Ajuste del radio de la órbita
+        // Calcular el radio de la órbita como la distancia del planeta al centro
+        let orbit_radius = nalgebra_glm::distance(&center, &model.position);
 
         // Generar puntos de la órbita
         let mut orbit_vertices = Vec::with_capacity(orbit_points);
@@ -106,6 +108,9 @@ fn render_orbits(framebuffer: &mut Framebuffer, models: &[Model], view_matrix: &
             let model_position = nalgebra_glm::translation(&orbit_point);
             let clip_position = projection_matrix * view_matrix * model_position * Vec4::new(1.0, 1.0, 1.0, 1.0);
 
+            // Imprimir la posición en clip space para depuración
+            println!("Clip Position: {:?}", clip_position);
+
             orbit_vertices.push(clip_position);
         }
 
@@ -114,6 +119,7 @@ fn render_orbits(framebuffer: &mut Framebuffer, models: &[Model], view_matrix: &
             let start = orbit_vertices[i];
             let end = orbit_vertices[(i + 1) % orbit_points];
 
+            // Verificar el valor de w
             if start[3] <= 0.0 || end[3] <= 0.0 {
                 continue;
             }
@@ -130,7 +136,7 @@ fn render_orbits(framebuffer: &mut Framebuffer, models: &[Model], view_matrix: &
             let screen_end_x = ((normalized_end_x + 1.0) * 0.5 * framebuffer.width as f32) as usize;
             let screen_end_y = ((1.0 - (normalized_end_y + 1.0) * 0.5) * framebuffer.height as f32) as usize;
 
-            // Solo dibujar si las coordenadas están dentro del rango del framebuffer
+            // Dibujar la órbita si las coordenadas están dentro del rango del framebuffer
             if screen_start_x < framebuffer.width && screen_start_y < framebuffer.height &&
                screen_end_x < framebuffer.width && screen_end_y < framebuffer.height {
                 framebuffer.draw_line(screen_start_x, screen_start_y, screen_end_x, screen_end_y, 0xFFFFFF);
@@ -138,6 +144,7 @@ fn render_orbits(framebuffer: &mut Framebuffer, models: &[Model], view_matrix: &
         }
     }
 }
+
 
 fn check_collision(model_a: &Model, model_b: &Model) -> bool {
     let distance = nalgebra_glm::distance(&model_a.position, &model_b.position);
