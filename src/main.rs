@@ -1,4 +1,4 @@
-use nalgebra_glm::{look_at, perspective, Vec3, Mat4, Mat3};
+use nalgebra_glm::{look_at, perspective, Vec3, Mat4, Mat3, Vec4};
 use minifb::{Key, Window, WindowOptions};
 use std::time::Duration;
 use std::f32::consts::PI;
@@ -81,6 +81,64 @@ enum CurrentModel {
 }
 
 
+fn render_orbits(framebuffer: &mut Framebuffer, models: &[Model], view_matrix: &Mat4, projection_matrix: &Mat4) {
+    let orbit_points = 100; // Número de segmentos para aproximar el círculo de la órbita
+    for model in models {
+        // Excluir los modelos que no deben tener órbita
+        if model.shader == PlanetShader::Ufo || model.shader == PlanetShader::Wormhole {
+            continue;
+        }
+
+        let center = model.position;
+        let orbit_radius = model.collision_radius * 4.0; // Ajuste del radio de la órbita
+
+        // Generar puntos de la órbita
+        let mut orbit_vertices = Vec::with_capacity(orbit_points);
+        for i in 0..orbit_points {
+            let angle = 2.0 * PI * (i as f32 / orbit_points as f32);
+            let x = center.x + orbit_radius * angle.cos();
+            let z = center.z + orbit_radius * angle.sin();
+            let y = center.y; // Mantener la órbita en el mismo plano Y
+
+            let orbit_point = Vec3::new(x, y, z);
+
+            // Transformar el punto de la órbita usando las matrices de vista y proyección
+            let model_position = nalgebra_glm::translation(&orbit_point);
+            let clip_position = projection_matrix * view_matrix * model_position * Vec4::new(1.0, 1.0, 1.0, 1.0);
+
+            orbit_vertices.push(clip_position);
+        }
+
+        // Renderizar la órbita conectando los puntos calculados
+        for i in 0..orbit_points {
+            let start = orbit_vertices[i];
+            let end = orbit_vertices[(i + 1) % orbit_points];
+
+            if start[3] <= 0.0 || end[3] <= 0.0 {
+                continue;
+            }
+
+            // Normalizar las coordenadas
+            let normalized_start_x = start[0] / start[3];
+            let normalized_start_y = start[1] / start[3];
+            let normalized_end_x = end[0] / end[3];
+            let normalized_end_y = end[1] / end[3];
+
+            // Mapear a coordenadas de pantalla
+            let screen_start_x = ((normalized_start_x + 1.0) * 0.5 * framebuffer.width as f32) as usize;
+            let screen_start_y = ((1.0 - (normalized_start_y + 1.0) * 0.5) * framebuffer.height as f32) as usize;
+            let screen_end_x = ((normalized_end_x + 1.0) * 0.5 * framebuffer.width as f32) as usize;
+            let screen_end_y = ((1.0 - (normalized_end_y + 1.0) * 0.5) * framebuffer.height as f32) as usize;
+
+            // Solo dibujar si las coordenadas están dentro del rango del framebuffer
+            if screen_start_x < framebuffer.width && screen_start_y < framebuffer.height &&
+               screen_end_x < framebuffer.width && screen_end_y < framebuffer.height {
+                framebuffer.draw_line(screen_start_x, screen_start_y, screen_end_x, screen_end_y, 0xFFFFFF);
+            }
+        }
+    }
+}
+
 fn check_collision(model_a: &Model, model_b: &Model) -> bool {
     let distance = nalgebra_glm::distance(&model_a.position, &model_b.position);
     let combined_radius = model_a.collision_radius + model_b.collision_radius;
@@ -105,9 +163,6 @@ fn warp_to_planet(camera: &mut Camera, planet: &Model) {
     // Indicar que la cámara ha cambiado
     camera.has_changed = true;
 }
-
-
-
 
 fn blend_screen(base: u32, emission: u32) -> u32 {
     let base_r = (base >> 16) & 0xFF;
@@ -143,8 +198,6 @@ fn create_cracked_earth_noise() -> FastNoiseLite {
     noise
 }
 
-
-
 fn create_model_matrix_with_rotation(position: Vec3, scale: f32, rotation: Vec3) -> Mat4 {
     // Crear la matriz de traslación usando `translation`
     let translation = nalgebra_glm::translation(&position);
@@ -158,8 +211,6 @@ fn create_model_matrix_with_rotation(position: Vec3, scale: f32, rotation: Vec3)
     // Multiplicar las matrices: traslación * rotación * escala
     translation * rotation_matrix * scaling
 }
-
-
 
 fn create_viewport_matrix(width: f32, height: f32) -> Mat4 {
     Mat4::new(
@@ -183,7 +234,6 @@ fn create_model_matrix(position: Vec3, scale: f32) -> Mat4 {
     let scale_matrix = nalgebra_glm::scaling(&Vec3::new(scale, scale, scale));
     translation_matrix * scale_matrix
 }
-
 
 fn generate_spiral_position(index: usize, base_radius: f32, height_step: f32) -> Vec3 {
     let angle = index as f32 * 0.8 * PI; // Aumentamos el ángulo para cubrir más espacio
@@ -459,6 +509,9 @@ fn main() {
     
         // Renderizar el skybox primero
         skybox.render(&mut framebuffer, &uniforms, camera.eye);
+
+        render_orbits(&mut framebuffer, &models, &view_matrix, &projection_matrix);
+
     
         // Iterar sobre la lista de modelos y renderizar cada uno
         for model in &models {
@@ -519,8 +572,6 @@ fn handle_key_input(window: &Window, camera: &mut Camera, models: &mut Vec<Model
         warp_to_planet(camera, &models[0]); // Wormhole (al principio de la lista)
     }
 }
-
-
 
 fn handle_input(window: &Window, camera: &mut Camera, spaceship_model: &mut Model, models: &mut [Model]) {
     let orbit_speed = PI / 50.0;

@@ -24,18 +24,6 @@ impl Framebuffer {
         }
     }
 
-    // pub fn clear(&mut self) {
-    //     for pixel in self.buffer.iter_mut() {
-    //         *pixel = self.background_color;
-    //     }
-    //     for depth in self.zbuffer.iter_mut() {
-    //         *depth = f32::INFINITY;
-    //     }
-    //     for emission in self.emission_buffer.iter_mut() { // Limpiar el buffer de emisión
-    //         *emission = 0;
-    //     }
-    // }
-
     // Función para limpiar el framebuffer
     pub fn clear(&mut self) {
         self.buffer.fill(self.background_color);
@@ -132,6 +120,36 @@ impl Framebuffer {
         let b = (base_b + emission_b).min(255);
 
         (r << 16) | (g << 8) | b
+    }
+
+    /// Dibuja una línea entre dos puntos (x0, y0) y (x1, y1) usando el algoritmo de Bresenham.
+    pub fn draw_line(&mut self, x0: usize, y0: usize, x1: usize, y1: usize, color: u32) {
+        let mut x0 = x0 as i32;
+        let mut y0 = y0 as i32;
+        let x1 = x1 as i32;
+        let y1 = y1 as i32;
+
+        let dx = (x1 - x0).abs();
+        let dy = (y1 - y0).abs();
+        let sx = if x0 < x1 { 1 } else { -1 };
+        let sy = if y0 < y1 { 1 } else { -1 };
+        let mut err = dx - dy;
+
+        while x0 != x1 || y0 != y1 {
+            if x0 >= 0 && y0 >= 0 && x0 < self.width as i32 && y0 < self.height as i32 {
+                self.buffer[(y0 as usize) * self.width + (x0 as usize)] = color;
+            }
+
+            let e2 = 2 * err;
+            if e2 > -dy {
+                err -= dy;
+                x0 += sx;
+            }
+            if e2 < dx {
+                err += dx;
+                y0 += sy;
+            }
+        }
     }
 }
     
