@@ -1,105 +1,77 @@
-# Rust 3D Graphics Engine
 
-Este proyecto es un motor de gráficos 3D escrito en Rust. Es capaz de cargar y renderizar modelos 3D en formato `.obj`, utilizando transformaciones de rotación, traslación y escala. Los usuarios pueden interactuar con el modelo a través de entradas de teclado para realizar rotaciones, ajustes de zoom y mover la cámara en un modo de órbita.
+# Proyecto de Simulación de Planetas
 
-### Teclas de Control
+Este proyecto es una simulación interactiva de un sistema planetario en 3D, desarrollado en Rust utilizando diversas bibliotecas para gráficos, ruido procedural, y reproducción de audio. El objetivo es ofrecer una experiencia visual de exploración espacial, con múltiples planetas que orbitan alrededor de un centro, efectos de shaders personalizados y música ambiental.
 
-- **A / D**: Mover la cámara hacia la izquierda/derecha en el espacio 3D.
-- **W / S**: Acercar/alejar la cámara del modelo (Zoom).
-- **Flechas de Dirección**: Rotar la cámara alrededor del modelo (órbita).
-- **Escape**: Cerrar la aplicación.
+## Requisitos
 
-# Controles y configuración de Planet Shader
+- **Rust**: Asegúrate de tener instalado Rust. Puedes instalarlo desde [Rust Official Website](https://www.rust-lang.org/).
+- **Dependencias**: Este proyecto utiliza varias dependencias, incluyendo:
+  - `minifb` para la ventana gráfica.
+  - `nalgebra_glm` para operaciones matemáticas y transformaciones.
+  - `rodio` para la reproducción de audio.
+  - `fastnoise-lite` para generar ruido procedural.
+  - `tobj` para cargar y procesar modelos OBJ.
+  - `rand` para generar números pseudoaleatorios.
+  - `fastnoise-lite` para crear ruido.
+  - `once_cell` para inicialización única para datos globales seguros.
+  - `image` para manipulación y procesamiento de imágenes.
 
-Este proyecto incluye varios shaders para simular distintos tipos de planetas y fenómenos. A continuación encontrará una guía para controlar cada sombreador y cómo cambiar entre ellos en tiempo real.
+Para instalar todas las dependencias, simplemente corre:
 
+```bash
+cargo build
+```
 
-## Controles de Shader
+## Ejecución del proyecto
 
-Las siguientes teclas se utilizan para alternar entre shaders:
+Para ejecutar el proyecto en modo release (recomendado para mejor rendimiento), utiliza el siguiente comando:
 
-- **1**: Selecciona el **Shader de Planeta Rocoso**
+```bash
+cargo run --release
+```
 
-    - **Modelo**: Esfera
+## Controles del programa
 
-    - **Descripción**: Un shader diseñado para imitar una superficie planetaria seca y rocosa con terreno accidentado.
+### Navegación:
 
-- **2**: Selecciona el **Shader de Planeta Gaseoso**
+- **Teclas de Flechas (←, →, ↑, ↓)**: Orbitar la cámara alrededor del sistema planetario.
+- **Teclas W/S**: Hacer zoom (acercar o alejar la cámara).
+- **Tecla B**: Activar/desactivar la vista Bird Eye (vista desde arriba).
+- **Tecla Escape**: Salir del programa.
 
-    - **Modelo**: Esfera
+### Selección de Planetas:
 
-    - **Descripción**: Un shader que representa un gigante gaseoso con capas de nubes animadas y sutiles cambios de color.
+Puedes moverte rápidamente a la órbita de un planeta usando las teclas numéricas:
 
-- **3**: Selecciona el **Shader de Planeta Congelado**
+- **Tecla 1**: Saltar al planeta rocoso (`Rocky Planet`).
+- **Tecla 2**: Saltar al planeta gaseoso (`Gaseous Planet`).
+- **Tecla 3**: Saltar al planeta congelado (`Frozen Planet`).
+- **Tecla 4**: Saltar al planeta tierra (`Earth Planet`).
+- **Tecla 5**: Saltar al planeta oceánico (`Oceanic Planet`).
+- **Tecla 6**: Saltar al OVNI (`UFO`).
+- **Tecla 7**: Saltar al agujero negro (`Gargantua`).
+- **Tecla 8**: Saltar al agujero de gusano (`Wormhole`).
 
-    - **Modelo**: Esfera
+### Audio:
 
-    - **Descripción**: Simula un planeta helado con texturas granuladas y variaciones de color que emulan hielo y nieve.
+La simulación incluye música de fondo que se reproduce en un bucle infinito. Puedes ajustar el volumen en el archivo `audio_player.rs` si es necesario.
 
-- **4**: Selecciona el **Shader de Planeta Terrestre**
+## Demostración
 
-    - **Modelo**: Esfera
+Puedes ver un video de demostración del proyecto funcionando en el siguiente enlace:
 
-    - **Descripción**: Un shader que se asemeja a la Tierra, con texturas de océano y tierra, movimiento de nubes y un efecto atmosférico.
+[![Video de demostración](https://img.youtube.com/vi/EAsEjQPio24/0.jpg)](https://www.youtube.com/watch?v=6-lyr18Gy4Q)
 
-- **5**: Selecciona el **Shader de Planeta Oceánico**
+## Créditos
 
-    - **Modelo**: Esfera
+Este proyecto fue desarrollado por **Irving Acosta** como parte del curso de Gráficas por Computadora. Incluye implementación de shaders personalizados, manejo de colisiones y reproducción de audio utilizando Rust.
 
-    - **Descripción**: Crea un mundo cubierto de océano con patrones de olas dinámicas y reflejos de luz.
+## Notas adicionales
 
-- **6**: Selecciona el **Shader de OVNI**
+- **Optimización**: El proyecto se ejecuta mejor en modo release (`cargo run --release`).
+- **Licencia**: Este proyecto se distribuye bajo la licencia MIT.
 
-    - **Modelo**: OVNI
+## Contacto
 
-    - **Descripción**: Un shader metálico y reflectante para modelos de OVNI, con luces pulsantes y un aura.
-
-- **7**: Selecciona el **Shader de Gargantúa**
-
-    - **Modelo**: Ojo
-
-    - **Descripción**: Un shader de agujero negro inspirado en Gargantúa de *Interstellar*, con un disco de acreción y emisión intensa.
-
-- **8**: Selecciona el **Shader de Agujero de Gusano**
-
-    - **Modelo**: Esfera
-
-    - **Descripción**: Simula un agujero de gusano con un borde brillante y un patrón en cruz en el centro.
-
-## Uso
-
-Cada shader puede seleccionarse usando la tecla asignada (1-8). Al seleccionar un shader, el modelo y la cámara se restablecerán automáticamente a una configuración adecuada.
- 
-### Descripción del Proyecto
-
-El motor utiliza la librería `minifb` para manejar la ventana y el buffer gráfico, y `nalgebra_glm` para los cálculos de matrices y vectores. Los modelos en formato `.obj` se cargan a través de un módulo que procesa sus vértices y los transforma de acuerdo a las entradas de usuario.
-
-Las transformaciones del modelo incluyen:
-- **Rotación**: Alrededor de los ejes X, Y y Z.
-- **Escalado**: Control de zoom para acercar o alejar el modelo.
-- **Traslación**: Movimiento del modelo en el espacio de la ventana.
-
-### Ejecución
-
-Para ejecutar este proyecto en modo de lanzamiento, sigue estos pasos:
-
-1. Asegúrate de tener Rust instalado.
-2. Coloca el archivo `.obj` en la carpeta `src/assets/` con el nombre `spaceship.obj`.
-3. Corre el siguiente comando para compilar y ejecutar el proyecto:
-```cargo run --release```
-
-
-
-
-### Dependencias
-
-- `nalgebra_glm`: Para cálculos de matrices y vectores.
-- `minifb`: Para la gestión de ventanas y gráficos.
-- Otros módulos internos para manejar el framebuffer, shader, y procesamiento de vértices.
-
-### Video:
-
-[Shaders 3D Model](https://www.youtube.com/watch?v=PFDPWAGDjos)
-
-
-
+Para cualquier duda o sugerencia, por favor, contacta a través del repositorio del proyecto.
