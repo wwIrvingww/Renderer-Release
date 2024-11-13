@@ -1,43 +1,72 @@
-# Rust 3D Graphics Engine
 
-Este proyecto es un motor de gráficos 3D escrito en Rust. Es capaz de cargar y renderizar modelos 3D en formato `.obj`, utilizando transformaciones de rotación, traslación y escala. Los usuarios pueden interactuar con el modelo a través de entradas de teclado para realizar rotaciones, ajustes de zoom y mover la cámara en un modo de órbita.
+# Proyecto de Simulación de Planetas
 
-### Teclas de Control
+Este proyecto es una simulación interactiva de un sistema planetario en 3D, desarrollado en Rust utilizando diversas bibliotecas para gráficos, ruido procedural, y reproducción de audio. El objetivo es ofrecer una experiencia visual de exploración espacial, con múltiples planetas que orbitan alrededor de un centro, efectos de shaders personalizados y música ambiental.
 
-- **A / D**: Mover la cámara hacia la izquierda/derecha en el espacio 3D.
-- **W / S**: Acercar/alejar la cámara del modelo (Zoom).
-- **Flechas de Dirección**: Rotar la cámara alrededor del modelo (órbita).
-- **Escape**: Cerrar la aplicación.
-  
-### Descripción del Proyecto
+## Requisitos
 
-El motor utiliza la librería `minifb` para manejar la ventana y el buffer gráfico, y `nalgebra_glm` para los cálculos de matrices y vectores. Los modelos en formato `.obj` se cargan a través de un módulo que procesa sus vértices y los transforma de acuerdo a las entradas de usuario.
+- **Rust**: Asegúrate de tener instalado Rust. Puedes instalarlo desde [Rust Official Website](https://www.rust-lang.org/).
+- **Dependencias**: Este proyecto utiliza varias dependencias, incluyendo:
+  - `minifb` para la ventana gráfica.
+  - `nalgebra_glm` para operaciones matemáticas y transformaciones.
+  - `rodio` para la reproducción de audio.
+  - `fastnoise-lite` para generar ruido procedural.
 
-Las transformaciones del modelo incluyen:
-- **Rotación**: Alrededor de los ejes X, Y y Z.
-- **Escalado**: Control de zoom para acercar o alejar el modelo.
-- **Traslación**: Movimiento del modelo en el espacio de la ventana.
+Para instalar todas las dependencias, simplemente corre:
 
-### Ejecución
+```bash
+cargo build
+```
 
-Para ejecutar este proyecto en modo de lanzamiento, sigue estos pasos:
+## Ejecución del proyecto
 
-1. Asegúrate de tener Rust instalado.
-2. Coloca el archivo `.obj` en la carpeta `src/assets/` con el nombre `spaceship.obj`.
-3. Corre el siguiente comando para compilar y ejecutar el proyecto:
-```cargo run --release```
+Para ejecutar el proyecto en modo release (recomendado para mejor rendimiento), utiliza el siguiente comando:
 
+```bash
+cargo run --release
+```
 
+## Controles del programa
 
+### Navegación:
 
-### Dependencias
+- **Teclas de Flechas (←, →, ↑, ↓)**: Orbitar la cámara alrededor del sistema planetario.
+- **Teclas W/S**: Hacer zoom (acercar o alejar la cámara).
+- **Tecla B**: Activar/desactivar la vista Bird Eye (vista desde arriba).
+- **Tecla Escape**: Salir del programa.
 
-- `nalgebra_glm`: Para cálculos de matrices y vectores.
-- `minifb`: Para la gestión de ventanas y gráficos.
-- Otros módulos internos para manejar el framebuffer, shader, y procesamiento de vértices.
+### Selección de Planetas:
 
-### Imagen
+Puedes moverte rápidamente a la órbita de un planeta usando las teclas numéricas:
 
-![Spaceship 3D Model](spaceship.png)
+- **Tecla 1**: Saltar al planeta rocoso (`Rocky Planet`).
+- **Tecla 2**: Saltar al planeta gaseoso (`Gaseous Planet`).
+- **Tecla 3**: Saltar al planeta congelado (`Frozen Planet`).
+- **Tecla 4**: Saltar al planeta tierra (`Earth Planet`).
+- **Tecla 5**: Saltar al planeta oceánico (`Oceanic Planet`).
+- **Tecla 6**: Saltar al OVNI (`UFO`).
+- **Tecla 7**: Saltar al agujero negro (`Gargantua`).
+- **Tecla 8**: Saltar al agujero de gusano (`Wormhole`).
 
+### Audio:
 
+La simulación incluye música de fondo que se reproduce en un bucle infinito. Puedes ajustar el volumen en el archivo `audio_player.rs` si es necesario.
+
+## Demostración
+
+Puedes ver un video de demostración del proyecto funcionando en el siguiente enlace:
+
+[![Video de demostración](https://img.youtube.com/vi/EAsEjQPio24/0.jpg)](https://www.youtube.com/watch?v=6-lyr18Gy4Q)
+
+## Créditos
+
+Este proyecto fue desarrollado por **Irving Acosta** como parte de un proyecto universitario. Incluye implementación de shaders personalizados, manejo de colisiones y reproducción de audio utilizando Rust.
+
+## Notas adicionales
+
+- **Optimización**: El proyecto se ejecuta mejor en modo release (`cargo run --release`).
+- **Licencia**: Este proyecto se distribuye bajo la licencia MIT.
+
+## Contacto
+
+Para cualquier duda o sugerencia, por favor, contacta a través del repositorio del proyecto.
