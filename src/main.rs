@@ -59,6 +59,9 @@ struct Model<'a> {
     rotation: Vec3,
     rotation_speed: Vec3,
     collision_radius: f32, // Radio de colisión
+    orbit_angle: f32, // Nuevo campo para almacenar el ángulo de órbita
+    orbit_speed: f32, // Nuevo campo para la velocidad de órbita
+    orbit_radius: f32, // Nuevo campo para almacenar el radio de la órbita
 }
 
 #[derive(PartialEq)]
@@ -91,8 +94,8 @@ fn render_orbits(framebuffer: &mut Framebuffer, models: &[Model], view_matrix: &
             continue;
         }
 
-        // Calcular el radio de la órbita como la distancia del planeta al centro
-        let orbit_radius = nalgebra_glm::distance(&center, &model.position);
+        // Usar el radio fijo de la órbita
+        let orbit_radius = model.orbit_radius;
 
         // Generar puntos de la órbita
         let mut orbit_vertices = Vec::with_capacity(orbit_points);
@@ -100,16 +103,13 @@ fn render_orbits(framebuffer: &mut Framebuffer, models: &[Model], view_matrix: &
             let angle = 2.0 * PI * (i as f32 / orbit_points as f32);
             let x = center.x + orbit_radius * angle.cos();
             let z = center.z + orbit_radius * angle.sin();
-            let y = center.y; // Mantener la órbita en el mismo plano Y
+            let y = center.y;
 
             let orbit_point = Vec3::new(x, y, z);
 
             // Transformar el punto de la órbita usando las matrices de vista y proyección
             let model_position = nalgebra_glm::translation(&orbit_point);
             let clip_position = projection_matrix * view_matrix * model_position * Vec4::new(1.0, 1.0, 1.0, 1.0);
-
-            // Imprimir la posición en clip space para depuración
-            println!("Clip Position: {:?}", clip_position);
 
             orbit_vertices.push(clip_position);
         }
@@ -144,6 +144,9 @@ fn render_orbits(framebuffer: &mut Framebuffer, models: &[Model], view_matrix: &
         }
     }
 }
+
+
+
 
 
 fn check_collision(model_a: &Model, model_b: &Model) -> bool {
@@ -360,8 +363,6 @@ fn main() {
     // Inicializar el mapa normal
     init_normal_map("src/assets/textures/water.png").expect("Failed to load normal map");
 
-    // Inicializar el Skybox después de cargar otros recursos
-    // let skybox = Skybox::new("src/assets/textures/stars.jpg");
     let skybox = Skybox::new(100); // Genera 500 estrellas
 
     // Almacenar los arrays de vértices en variables
@@ -377,89 +378,116 @@ fn main() {
 
     // Crear la lista de modelos con las posiciones en espiral
     let mut models = vec![
-    Model {
-        vertex_array: &eye_vertices,
-        shader: PlanetShader::Wormhole,
-        position: Vec3::new(0.0, 0.0, 0.0), // Centro
-        scale: 2.0,
-        rotation: Vec3::new(0.0, 0.0, 0.0), // Inicializar rotación
-        rotation_speed: Vec3::new(0.0, 0.2, 0.0), // Rotación lenta en el eje Y
-        collision_radius: 3.0,
-    },
-    Model {
-        vertex_array: &sphere_vertices,
-        shader: PlanetShader::Rocky,
-        position: generate_spiral_position(1, 5.0, 1.0),
-        scale: 1.5,
-        rotation: Vec3::new(0.0, 0.0, 0.0), // Inicializar rotación
-        rotation_speed: Vec3::new(0.0, 0.4, 0.0), // Rotación lenta en el eje Y
-        collision_radius: 3.5,
-    },
-    Model {
-        vertex_array: &sphere_vertices,
-        shader: PlanetShader::Oceanic,
-        position: generate_spiral_position(2, 5.0, 1.0),
-        scale: 1.0,
-        rotation: Vec3::new(0.0, 0.0, 0.0), // Inicializar rotación
-        rotation_speed: Vec3::new(0.0, 0.5, 0.0), // Rotación lenta en el eje Y
-        collision_radius: 2.5,
-    },
-    Model {
-        vertex_array: &sphere_vertices,
-        shader: PlanetShader::Earth,
-        position: generate_spiral_position(3, 5.0, 1.0),
-        scale: 1.5,
-        rotation: Vec3::new(0.0, 0.0, 0.0), // Inicializar rotación
-        rotation_speed: Vec3::new(0.0, 0.8, 0.0), // Rotación lenta en el eje Y
-        collision_radius: 3.5,
-    },
-    Model {
-        vertex_array: &sphere_vertices,
-        shader: PlanetShader::Frozen,
-        position: generate_spiral_position(4, 5.0, 1.0),
-        scale: 1.5,
-        rotation: Vec3::new(0.0, 0.0, 0.0), // Inicializar rotación
-        rotation_speed: Vec3::new(0.0, 0.13, 0.0), // Rotación lenta en el eje Y
-        collision_radius: 3.5,
-    },
-    Model {
-        vertex_array: &sphere_vertices,
-        shader: PlanetShader::Gaseous,
-        position: generate_spiral_position(5, 5.0, 1.0),
-        scale: 2.0,
-        rotation: Vec3::new(0.0, 0.0, 0.0), // Inicializar rotación
-        rotation_speed: Vec3::new(0.0, 0.21, 0.0), // Rotación lenta en el eje Y
-        collision_radius: 4.0,
-    },
-    Model {
-        vertex_array: &ufo_vertices,
-        shader: PlanetShader::Ufo,
-        position: generate_spiral_position(6, 5.0, 1.0),
-        scale: 0.005,
-        rotation: Vec3::new(0.0, 0.0, 0.0), // Inicializar rotación
-        rotation_speed: Vec3::new(0.0, 0.8, 0.0), // Rotación lenta en el eje Y
-        collision_radius: 0.05,
-    },
-    Model {
-        vertex_array: &eye_vertices,
-        shader: PlanetShader::Gargantua,
-        position: generate_spiral_position(7, 5.0, 1.0),
-        scale: 2.0,
-        rotation: Vec3::new(0.0, 0.0, 0.0), // Inicializar rotación
-        rotation_speed: Vec3::new(0.0, 0.0, 0.0), // Rotación lenta en el eje Y
-        collision_radius: 4.0,
-    },
-    Model {
-        vertex_array: &spaceship_vertices,
-        shader: PlanetShader::Ufo,
-        position: camera.eye + camera.get_forward_vector() * 4.0,
-        scale: 0.02,
-        rotation: Vec3::new(0.0, 0.0, 0.0), // Inicializar rotación
-        rotation_speed: Vec3::new(0.0, 0.0, 0.0), // Rotación lenta en el eje Y
-        collision_radius: 8.0,
-    },
+        Model {
+            vertex_array: &eye_vertices,
+            shader: PlanetShader::Wormhole,
+            position: Vec3::new(0.0, 0.0, 0.0),
+            scale: 2.0,
+            rotation: Vec3::new(0.0, 0.0, 0.0),
+            rotation_speed: Vec3::new(0.0, 0.2, 0.0),
+            collision_radius: 3.0,
+            orbit_angle: 0.0,
+            orbit_speed: 0.0,
+            orbit_radius: 0.0,
+        },
+        Model {
+            vertex_array: &sphere_vertices,
+            shader: PlanetShader::Rocky,
+            position: generate_spiral_position(1, 5.0, 1.0),
+            scale: 1.5,
+            rotation: Vec3::new(0.0, 0.0, 0.0),
+            rotation_speed: Vec3::new(0.0, 0.4, 0.0),
+            collision_radius: 3.5,
+            orbit_angle: 0.0,
+            orbit_speed: 0.01,
+            orbit_radius: nalgebra_glm::distance(&Vec3::new(0.0, 0.0, 0.0), &generate_spiral_position(1, 5.0, 1.0)),
+        },
+        Model {
+            vertex_array: &sphere_vertices,
+            shader: PlanetShader::Oceanic,
+            position: generate_spiral_position(2, 5.0, 1.0),
+            scale: 1.0,
+            rotation: Vec3::new(0.0, 0.0, 0.0),
+            rotation_speed: Vec3::new(0.0, 0.5, 0.0),
+            collision_radius: 2.5,
+            orbit_angle: 0.0,
+            orbit_speed: 0.01,
+            orbit_radius: nalgebra_glm::distance(&Vec3::new(0.0, 0.0, 0.0), &generate_spiral_position(2, 5.0, 1.0)),
+        },
+        Model {
+            vertex_array: &sphere_vertices,
+            shader: PlanetShader::Earth,
+            position: generate_spiral_position(3, 5.0, 1.0),
+            scale: 1.5,
+            rotation: Vec3::new(0.0, 0.0, 0.0),
+            rotation_speed: Vec3::new(0.0, 0.8, 0.0),
+            collision_radius: 3.5,
+            orbit_angle: 0.0,
+            orbit_speed: 0.01,
+            orbit_radius: nalgebra_glm::distance(&Vec3::new(0.0, 0.0, 0.0), &generate_spiral_position(3, 5.0, 1.0)),
+        },
+        Model {
+            vertex_array: &sphere_vertices,
+            shader: PlanetShader::Frozen,
+            position: generate_spiral_position(4, 5.0, 1.0),
+            scale: 1.5,
+            rotation: Vec3::new(0.0, 0.0, 0.0),
+            rotation_speed: Vec3::new(0.0, 0.13, 0.0),
+            collision_radius: 3.5,
+            orbit_angle: 0.0,
+            orbit_speed: 0.01,
+            orbit_radius: nalgebra_glm::distance(&Vec3::new(0.0, 0.0, 0.0), &generate_spiral_position(4, 5.0, 1.0)),
+        },
+        Model {
+            vertex_array: &sphere_vertices,
+            shader: PlanetShader::Gaseous,
+            position: generate_spiral_position(5, 5.0, 1.0),
+            scale: 2.0,
+            rotation: Vec3::new(0.0, 0.0, 0.0),
+            rotation_speed: Vec3::new(0.0, 0.21, 0.0),
+            collision_radius: 4.0,
+            orbit_angle: 0.0,
+            orbit_speed: 0.01,
+            orbit_radius: nalgebra_glm::distance(&Vec3::new(0.0, 0.0, 0.0), &generate_spiral_position(5, 5.0, 1.0)),
+        },
+        Model {
+            vertex_array: &ufo_vertices,
+            shader: PlanetShader::Ufo,
+            position: generate_spiral_position(6, 5.0, 1.0),
+            scale: 0.005,
+            rotation: Vec3::new(0.0, 0.0, 0.0),
+            rotation_speed: Vec3::new(0.0, 0.8, 0.0),
+            collision_radius: 0.05,
+            orbit_angle: 0.0,
+            orbit_speed: 0.01,
+            orbit_radius: nalgebra_glm::distance(&Vec3::new(0.0, 0.0, 0.0), &generate_spiral_position(6, 5.0, 1.0)),
+        },
+        Model {
+            vertex_array: &eye_vertices,
+            shader: PlanetShader::Gargantua,
+            position: generate_spiral_position(7, 5.0, 1.0),
+            scale: 2.0,
+            rotation: Vec3::new(0.0, 0.0, 0.0),
+            rotation_speed: Vec3::new(0.0, 0.0, 0.0),
+            collision_radius: 4.0,
+            orbit_angle: 0.0,
+            orbit_speed: 0.01,
+            orbit_radius: nalgebra_glm::distance(&Vec3::new(0.0, 0.0, 0.0), &generate_spiral_position(7, 5.0, 1.0)),
+        },
+        Model {
+            vertex_array: &spaceship_vertices,
+            shader: PlanetShader::Ufo,
+            position: camera.eye + camera.get_forward_vector() * 4.0,
+            scale: 0.02,
+            rotation: Vec3::new(0.0, 0.0, 0.0),
+            rotation_speed: Vec3::new(0.0, 0.0, 0.0),
+            collision_radius: 8.0,
+            orbit_angle: 0.0,
+            orbit_speed: 0.0,
+            orbit_radius: 0.0,
+        },
     ];
-
+    
     let mut time_counter = 0;
     let mut current_planet_shader = PlanetShader::Rocky;
 
@@ -474,25 +502,30 @@ fn main() {
     
         let (rest_models, spaceship_model) = models.split_last_mut().unwrap();
         handle_input(&window, &mut camera, rest_models, spaceship_model);
-        
+    
         handle_key_input(&window, &mut camera, &mut models);
     
         framebuffer.clear();
     
-        // Actualizar la posición de la nave para que esté siempre frente a la cámara
+        // Actualizar la posición y rotación de los modelos
         for model in &mut models {
-            // Si es un UFO, seguimos controlando su posición y rotación usando la cámara
-            if let PlanetShader::Ufo = model.shader {
+            if model.shader == PlanetShader::Ufo {
                 model.position = camera.eye + camera.get_forward_vector() * 2.5;
                 model.rotation = Vec3::new(camera.pitch, camera.yaw, 0.0);
-            } else {
-                // Para otros modelos, actualizamos la rotación usando `rotation_speed`
-                model.rotation.x += model.rotation_speed.x * time_counter as f32 * 0.001;
-                model.rotation.y += model.rotation_speed.y * time_counter as f32 * 0.001;
-                model.rotation.z += model.rotation_speed.z * time_counter as f32 * 0.001;
+            } else if model.shader != PlanetShader::Wormhole {
+                // Incrementar el ángulo de órbita
+                model.orbit_angle += model.orbit_speed;
+        
+                // Asegurarnos de que el ángulo esté en el rango [0, 2*PI]
+                if model.orbit_angle > 2.0 * PI {
+                    model.orbit_angle -= 2.0 * PI;
+                }
+        
+                // Actualizar la posición del planeta usando el radio fijo de la órbita
+                model.position.x = model.orbit_radius * model.orbit_angle.cos();
+                model.position.z = model.orbit_radius * model.orbit_angle.sin();
             }
         }
-        
         
     
         // Crear uniforms antes de renderizar
@@ -516,9 +549,9 @@ fn main() {
     
         // Renderizar el skybox primero
         skybox.render(&mut framebuffer, &uniforms, camera.eye);
-
+    
+        // Renderizar las órbitas (éstas son estáticas y no cambian)
         render_orbits(&mut framebuffer, &models, &view_matrix, &projection_matrix);
-
     
         // Iterar sobre la lista de modelos y renderizar cada uno
         for model in &models {
@@ -526,7 +559,6 @@ fn main() {
             let model_matrix = create_model_matrix_with_rotation(model.position, model.scale, model.rotation);
             let transformation_matrix = uniforms.projection_matrix * uniforms.view_matrix * model_matrix;
             let normal_matrix = model_matrix.fixed_resize::<3, 3>(0.0).try_inverse().unwrap().transpose();
-            
     
             let model_uniforms = Uniforms {
                 model_matrix,
@@ -543,12 +575,16 @@ fn main() {
             render(&mut framebuffer, &model_uniforms, model.vertex_array, &model.shader);
         }
     
+        // Actualizar el buffer de la ventana
         window
             .update_with_buffer(&framebuffer.buffer, framebuffer_width, framebuffer_height)
             .unwrap();
     
         std::thread::sleep(frame_delay);
     }
+    
+    
+    
 
 }
 
