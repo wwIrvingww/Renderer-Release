@@ -16,9 +16,9 @@ mod planets_shader;
 mod texture;
 mod normal_map;
 mod skybox;
+mod audio_player;
 
-
-
+use audio_player::AudioPlayer;
 use skybox::Skybox;
 use normal_map::{init_normal_map, with_normal_map};
 use texture::{init_texture, with_texture};
@@ -145,10 +145,6 @@ fn render_orbits(framebuffer: &mut Framebuffer, models: &[Model], view_matrix: &
     }
 }
 
-
-
-
-
 fn check_collision(model_a: &Model, model_b: &Model) -> bool {
     let distance = nalgebra_glm::distance(&model_a.position, &model_b.position);
     let combined_radius = model_a.collision_radius + model_b.collision_radius;
@@ -159,8 +155,11 @@ fn check_collision(model_a: &Model, model_b: &Model) -> bool {
 fn warp_to_planet(camera: &mut Camera, planet: &Model) {
     let warp_distance = 15.0; // Distancia fija para ubicarse frente al planeta
 
-    // Actualizar la posición de la cámara: frente al planeta, a la misma altura y posición lateral
-    camera.eye = Vec3::new(planet.position.x, planet.position.y, planet.position.z + warp_distance);
+    // Calcular el vector de dirección desde el planeta hacia la cámara
+    let direction = nalgebra_glm::normalize(&(camera.eye - planet.position));
+
+    // Actualizar la posición de la cámara: frente al planeta, en la dirección opuesta
+    camera.eye = planet.position + direction * warp_distance;
 
     // Apuntar la cámara hacia el planeta
     camera.center = planet.position;
@@ -339,7 +338,7 @@ fn main() {
 
     let mut framebuffer = Framebuffer::new(framebuffer_width, framebuffer_height);
     let mut window = Window::new(
-        "Planet Renderer",
+        "Irving 22781",
         window_width,
         window_height,
         WindowOptions::default(),
@@ -347,6 +346,10 @@ fn main() {
     .unwrap();
 
     framebuffer.set_background_color(0x000000);
+
+    // Inicializar el reproductor de música
+    let audio_player = AudioPlayer::new("src/assets/audio/interestellar.mp3");
+    audio_player.play();
 
     let noise = create_cracked_earth_noise();
     
@@ -363,7 +366,7 @@ fn main() {
     // Inicializar el mapa normal
     init_normal_map("src/assets/textures/water.png").expect("Failed to load normal map");
 
-    let skybox = Skybox::new(100); // Genera 500 estrellas
+    let skybox = Skybox::new(900); // Genera 500 estrellas
 
     // Almacenar los arrays de vértices en variables
     let sphere_vertices = sphere_obj.get_vertex_array();
